@@ -55,6 +55,8 @@ export interface ToolTracker {
   called: Set<ToolName>;
   /** Pending log writes, awaited at the end of the turn. */
   pending: Promise<unknown>[];
+  /** spokenSummaryBn of the last successful booking-type tool in this turn (spoken if the LLM says nothing). */
+  lastSpoken?: string;
 }
 
 const TEMP_PROBLEM = {
@@ -86,6 +88,16 @@ export function bookingPrecheck(state: AgentState): (BookingResult & { hint?: st
   return null;
 }
 
+/** Mark a present name and valid phone as confirmed (after a yes to the full read-back). */
+export function confirmIdentity(state: AgentState): Partial<AgentState> {
+  const patch: Partial<AgentState> = {};
+  if (state.patient && (state.patient.nameBn || state.patient.nameEn) && !state.patient.nameConfirmed) {
+    patch.patient = { ...state.patient, nameConfirmed: true };
+  }
+  if (state.phone?.valid && !state.phone.confirmed) patch.phone = { ...state.phone, confirmed: true };
+  return patch;
+}
+
 export function createAgentTools(rt: ToolRuntime, tracker: ToolTracker): ToolSet {
   const svc: AgentServices = rt.services ?? services;
   const ctx = (): ToolContext => ({ callId: rt.callId, clinicId: rt.clinicId, now: rt.now(), state: rt.holder.state });
@@ -100,6 +112,8 @@ export function createAgentTools(rt: ToolRuntime, tracker: ToolTracker): ToolSet
       tracker.pending.push(svc.logEvent(rt.callId, "tool_call", { name, input }));
       try {
         const output = await run(input);
+        const spoken = (output as { ok?: unknown; spokenSummaryBn?: unknown } | null)?.spokenSummaryBn;
+        if (isOk(output) && typeof spoken === "string" && spoken) tracker.lastSpoken = spoken;
         tracker.pending.push(
           svc.logEvent(rt.callId, "tool_result", { name, output, ok: isOk(output), ms: Date.now() - t0 }),
         );
@@ -171,6 +185,9 @@ export function createAgentTools(rt: ToolRuntime, tracker: ToolTracker): ToolSet
         "Book the chosen slot. Call ONLY after reading back all details and the caller clearly said yes; callerConfirmed must be true.",
       inputSchema: BookAppointmentInputSchema,
       execute: wrap("book_appointment", async (input) => {
+        // The final read-back says the name and phone too, so the caller's yes to it confirms them
+        // (TC-03: stacked questions left them unconfirmed and booking looped).
+        if (input.callerConfirmed === true) set(confirmIdentity(rt.holder.state));
         const pre = bookingPrecheck(rt.holder.state);
         if (pre) return pre;
         set({ chosenSlot: input.slotStart, doctorId: input.doctorId, serviceCode: input.serviceCode, reason: input.reason });

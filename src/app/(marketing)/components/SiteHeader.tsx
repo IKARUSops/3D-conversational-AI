@@ -15,7 +15,7 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-bg/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <Link href="/" aria-label="ByteVoice Bangla" className="shrink-0">
+        <Link href="/" aria-label="ByteVoice Bangla" className="min-w-0 shrink rounded-md">
           <Logo />
         </Link>
         <nav aria-label={lang === "bn" ? "প্রধান" : "Main"} className="hidden lg:block">
@@ -42,7 +42,7 @@ export function SiteHeader() {
                 onClick={() => setLang(l)}
                 aria-pressed={lang === l}
                 lang={l}
-                className={`h-9 min-w-11 rounded-full px-3 font-medium transition-colors ${
+                className={`h-10 min-w-11 rounded-full px-3 font-medium transition-colors ${
                   lang === l ? "bg-primary text-on-primary" : "text-fg-muted hover:text-fg"
                 }`}
               >
@@ -52,7 +52,7 @@ export function SiteHeader() {
           </div>
           <Link
             href="/portal"
-            className="hidden h-10 items-center rounded-full border border-border-strong px-4 text-sm font-medium hover:bg-glass sm:inline-flex"
+            className="inline-flex h-10 items-center rounded-full border border-border-strong px-3 text-sm font-medium hover:bg-glass sm:px-4"
           >
             {t.nav.portal}
           </Link>

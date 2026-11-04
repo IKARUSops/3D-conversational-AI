@@ -32,7 +32,7 @@ export function ThemeToggle() {
         }
         listeners.forEach((l) => l());
       }}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-surface hover:text-fg"
+      className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface hover:text-fg"
       aria-label={`Switch to ${next} theme`}
       title={`Switch to ${next} theme`}
     >

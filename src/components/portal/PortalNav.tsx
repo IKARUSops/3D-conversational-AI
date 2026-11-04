@@ -17,10 +17,10 @@ const ITEMS = [
   { href: "/portal/settings", label: "Settings", Icon: IconSettings },
 ] as const;
 
-export function PortalNav({ showSettings }: { showSettings: boolean }) {
+export function PortalNav({ showSettings, label = "Portal" }: { showSettings: boolean; label?: string }) {
   const pathname = usePathname();
   return (
-    <nav aria-label="Portal" className="flex flex-col gap-1">
+    <nav aria-label={label} className="flex flex-col gap-1">
       {ITEMS.filter((i) => showSettings || i.href !== "/portal/settings").map(
         ({ href, label, Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
@@ -29,7 +29,7 @@ export function PortalNav({ showSettings }: { showSettings: boolean }) {
               key={href}
               href={href}
               aria-current={active ? "page" : undefined}
-              className={`relative flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors ${
+              className={`relative flex h-11 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors ${
                 active
                   ? "bg-surface text-fg shadow-card before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-primary"
                   : "text-fg-muted hover:bg-surface hover:text-fg"

@@ -54,10 +54,10 @@ row with emoji icons, everything centred.
 | `surface-2` | #F3EEE3 | #0F2250 | table header, sidebar, quiet blocks |
 | `glass` | white 70% | white 6% | glass chips and panels (with backdrop blur) |
 | `border` | #E4DCCB | white 10% | dividers, card borders |
-| `border-strong` | #CFC4AD | white 18% | inputs |
+| `border-strong` | #8F8470 | white 40% | inputs, secondary buttons (3:1, WCAG 1.4.11) |
 | `fg` | ink-900 | #F4F6FB | main text |
 | `fg-muted` | #4B5567 | #B5C0D8 | secondary text (AA on bg and surface) |
-| `fg-subtle` | #6B7487 | #8C9AB8 | captions, timestamps (AA large) |
+| `fg-subtle` | #5C6577 | #8C9AB8 | captions, timestamps (AA 4.5:1 on every surface) |
 | `primary` | gold-500 | gold-500 | primary button background |
 | `primary-hover` | gold-600 | gold-300 | primary hover |
 | `on-primary` | navy-900 | navy-900 | text on gold (contrast 9.6:1) |

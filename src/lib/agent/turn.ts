@@ -21,7 +21,7 @@ import type { CallRow, TurnStore } from "./store";
 import { createAgentTools, type AgentServices, type ToolTracker } from "./tools";
 
 export const HISTORY_WINDOW = 20;
-export const MAX_STEPS = 4;
+export const MAX_STEPS = 6;
 export const MAX_OUTPUT_TOKENS = 200;
 
 /** Tools slow enough to deserve a filler line before the first sentence. */
@@ -371,7 +371,12 @@ export async function runTurn(args: RunTurnArgs, deps: TurnDeps, emit: (e: TurnE
     // 5. Nothing usable: say sorry (or goodbye when the call was ended by a tool).
     if (sentences.length === 0 && live()) {
       if (holder.state.ended) sendSentence(lines.goodbye);
-      else {
+      else if (tracker.lastSpoken) {
+        // A tool succeeded but the model wrote nothing (step limit, TC-03): say the result,
+        // never "sorry, say again" after a booking that worked.
+        sendSentence(tracker.lastSpoken);
+        tracker.pending.push(svc.logEvent(callId, "llm_error", { reason: "no text in reply, spoke tool result" }));
+      } else {
         sendSentence(lines.sorry);
         tracker.pending.push(svc.logEvent(callId, "llm_error", { reason: "no text in reply" }));
       }

@@ -5,7 +5,8 @@
 import Link from "next/link";
 import { requireStaff } from "@/lib/auth";
 import { Logo } from "@/components/ui/Logo";
-import { IconLogout, IconMenu } from "@/components/ui/icons";
+import { IconLogout } from "@/components/ui/icons";
+import { MobilePortalMenu } from "@/components/portal/MobilePortalMenu";
 import { PortalNav } from "@/components/portal/PortalNav";
 import { ThemeToggle } from "@/components/portal/ThemeToggle";
 import { logoutAction } from "../login/actions";
@@ -34,7 +35,7 @@ export default async function PortalAppLayout({
         <form action={logoutAction}>
           <button
             type="submit"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-fg-muted hover:bg-surface hover:text-fg"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-md text-fg-muted hover:bg-surface hover:text-fg"
             aria-label="Sign out"
             title="Sign out"
           >
@@ -47,8 +48,14 @@ export default async function PortalAppLayout({
 
   return (
     <div className="flex min-h-dvh flex-1 flex-col bg-bg text-fg lg:flex-row">
+      <a
+        href="#portal-main"
+        className="sr-only z-50 rounded-md bg-surface px-4 py-2 text-sm font-medium text-fg shadow-card focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+      >
+        Skip to content
+      </a>
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-6 border-r border-border bg-surface-2 p-4 lg:flex">
-        <Link href="/portal/calls" className="px-2 pt-1">
+        <Link href="/portal/calls" className="rounded-md px-2 pt-1" aria-label="ByteVoice portal home">
           <Logo subtitle="Dhaka Dental Care" />
         </Link>
         <div className="flex-1">
@@ -57,21 +64,16 @@ export default async function PortalAppLayout({
         {userBlock}
       </aside>
 
-      <header className="sticky top-0 z-30 border-b border-border bg-surface-2/95 backdrop-blur lg:hidden">
-        <details className="group">
-          <summary className="flex h-14 cursor-pointer list-none items-center justify-between px-4 [&::-webkit-details-marker]:hidden">
+      <MobilePortalMenu
+        brand={
+          <Link href="/portal/calls" className="rounded-md" aria-label="ByteVoice portal home">
             <Logo />
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-md text-fg-muted">
-              <IconMenu />
-              <span className="sr-only">Open menu</span>
-            </span>
-          </summary>
-          <div className="space-y-4 px-4 pb-4">
-            <PortalNav showSettings={showSettings} />
-            {userBlock}
-          </div>
-        </details>
-      </header>
+          </Link>
+        }
+      >
+        <PortalNav showSettings={showSettings} label="Portal (mobile)" />
+        {userBlock}
+      </MobilePortalMenu>
 
       <div className="flex min-w-0 flex-1 flex-col">
         {staff.readOnly ? (
@@ -79,9 +81,13 @@ export default async function PortalAppLayout({
             Reviewer account: you can see everything; changes are turned off.
           </p>
         ) : null}
-        <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <main
+          id="portal-main"
+          tabIndex={-1}
+          className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 outline-none sm:px-6 lg:px-8 lg:py-8"
+        >
           {children}
-        </div>
+        </main>
       </div>
     </div>
   );

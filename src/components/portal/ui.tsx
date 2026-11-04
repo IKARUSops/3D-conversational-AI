@@ -17,7 +17,7 @@ export function PageHeader({
     <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
         {back ? (
-          <Link href={back.href} className="mb-2 inline-block text-sm text-fg-muted hover:text-fg">
+          <Link href={back.href} className="mb-2 inline-flex min-h-11 items-center rounded-md text-sm text-fg-muted hover:text-fg">
             ← {back.label}
           </Link>
         ) : null}

@@ -110,6 +110,26 @@ async function turn(body: Record<string, unknown>, deps: Partial<TurnDeps> & { l
   return { events, mem, svc };
 }
 
+/** Step 1: one tool call, no text; later steps: nothing (like the step limit in TC-03). */
+function toolOnlyModel(toolName: string, input: unknown) {
+  let step = 0;
+  return new MockLanguageModelV4({
+    doStream: async () => {
+      step++;
+      const chunks = (
+        step === 1
+          ? [
+              { type: "stream-start", warnings: [] },
+              { type: "tool-call", toolCallId: "b1", toolName, input: JSON.stringify(input) },
+              finish("tool-calls"),
+            ]
+          : [{ type: "stream-start", warnings: [] }, finish()]
+      ) as V4Part[];
+      return { stream: simulateReadableStream({ chunks, chunkDelayInMs: 0 }) as never };
+    },
+  });
+}
+
 describe("T2.4 turn loop (mock LLM)", () => {
   it("streams sentences with speakable ttsText, saves turns and ends with done", async () => {
     const { events, mem } = await turn(
@@ -197,5 +217,37 @@ describe("T2.4 turn loop (mock LLM)", () => {
     mem.call.endedAt = new Date();
     expect(await prepareTurn("call-1", CLINIC.id, { ...body, turnSeq: 6 }, mem.store)).toMatchObject({ ok: false, code: "call_ended" });
     expect(await prepareTurn("call-1", "other-clinic", { ...body, turnSeq: 6 }, mem.store)).toMatchObject({ ok: false });
+  });
+
+  it("TC-03: yes to the full read-back confirms name and phone, books, and speaks the result", async () => {
+    const state: AgentState = {
+      ...createInitialAgentState(),
+      patient: { nameBn: "শরীফ", nameConfirmed: false },
+      phone: { raw: "01867643866", e164: "+8801867643866", valid: true, confirmed: false, tries: 0 },
+    };
+    const svc = services();
+    const summary = N("অ্যাপয়েন্টমেন্ট বুক হয়েছে: বৃহস্পতিবার, পাঁচ নভেম্বর, বিকেল সাড়ে তিনটা, ডা. ফারহানা ইসলাম।");
+    (svc.bookAppointment as ReturnType<typeof vi.fn>).mockImplementation(async (ctx: { state: AgentState }) => {
+      expect(ctx.state.patient?.nameConfirmed).toBe(true);
+      expect(ctx.state.phone?.confirmed).toBe(true);
+      return { ok: true, appointmentId: "appt-1", spokenSummaryBn: summary };
+    });
+    const model = toolOnlyModel("book_appointment", {
+      slotStart: "2026-11-05T15:30:00+06:00",
+      doctorId: "doc-nusrat",
+      serviceCode: "checkup",
+      reason: "দাঁতে ব্যথা",
+      callerConfirmed: true,
+    });
+    const { events, mem } = await turn(
+      { turnSeq: 1, text: "হ্যাঁ ঠিক আছে" },
+      { llms: [llm("google:mock", model)], services: svc },
+      memoryStore(state),
+    );
+    expect(svc.bookAppointment).toHaveBeenCalledTimes(1);
+    const said = events.filter((e) => e.type === "sentence").map((e) => e.text).join(" ");
+    expect(said).toContain(N("বুক হয়েছে"));
+    expect(said).not.toContain(N("আবার বলবেন"));
+    expect((mem.call.agentState as AgentState).appointmentId).toBe("appt-1");
   });
 });

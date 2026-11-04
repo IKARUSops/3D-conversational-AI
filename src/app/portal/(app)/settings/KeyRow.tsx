@@ -8,7 +8,7 @@ import {
 } from "./actions";
 
 const small =
-  "inline-flex h-9 items-center rounded-md border border-border-strong px-3 text-sm font-medium hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex h-10 items-center rounded-md border border-border-strong px-3 text-sm font-medium hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50";
 
 export function KeyRow({
   provider,
@@ -43,14 +43,26 @@ export function KeyRow({
           <div className="flex gap-2">
             <form action={test}>
               <input type="hidden" name="provider" value={provider} />
-              <button className={small} disabled={testing}>
+              <button className={small} disabled={testing} aria-label={`Test ${label} key`}>
                 {testing ? "Testing…" : "Test key"}
               </button>
             </form>
-            <form action={del}>
+            <form
+              action={del}
+              onSubmit={(e) => {
+                // Deleting a clinic key is not undoable: ask first.
+                if (!window.confirm(`Delete the ${label} clinic key? Calls will use the platform key.`)) {
+                  e.preventDefault();
+                }
+              }}
+            >
               <input type="hidden" name="provider" value={provider} />
-              <button className={`${small} text-danger`} disabled={readOnly || deleting}>
-                Delete
+              <button
+                className={`${small} text-danger`}
+                disabled={readOnly || deleting}
+                aria-label={`Delete ${label} key`}
+              >
+                {deleting ? "Deleting…" : "Delete"}
               </button>
             </form>
           </div>

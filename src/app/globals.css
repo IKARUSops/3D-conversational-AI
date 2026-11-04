@@ -37,10 +37,10 @@
   --surface-2: #f3eee3;
   --glass: rgb(255 255 255 / 0.7);
   --border: #e4dccb;
-  --border-strong: #cfc4ad;
+  --border-strong: #8f8470; /* 3:1+ on white, sand and surface-2 (WCAG 1.4.11) */
   --fg: var(--ink-900);
   --fg-muted: #4b5567;
-  --fg-subtle: #646d80;
+  --fg-subtle: #5c6577; /* 4.5:1+ also on surface-2 */
   --primary: var(--gold-500);
   --primary-hover: var(--gold-600);
   --on-primary: var(--navy-900);
@@ -82,7 +82,7 @@
     --surface-2: #0f2250;
     --glass: rgb(255 255 255 / 0.06);
     --border: rgb(255 255 255 / 0.1);
-    --border-strong: rgb(255 255 255 / 0.18);
+    --border-strong: rgb(255 255 255 / 0.4); /* 3.5:1 on navy surfaces */
     --fg: #f4f6fb;
     --fg-muted: #b5c0d8;
     --fg-subtle: #8c9ab8;
@@ -123,7 +123,7 @@
   --surface-2: #0f2250;
   --glass: rgb(255 255 255 / 0.06);
   --border: rgb(255 255 255 / 0.1);
-  --border-strong: rgb(255 255 255 / 0.18);
+  --border-strong: rgb(255 255 255 / 0.4); /* 3.5:1 on navy surfaces */
   --fg: #f4f6fb;
   --fg-muted: #b5c0d8;
   --fg-subtle: #8c9ab8;
