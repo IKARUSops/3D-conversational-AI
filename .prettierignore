@@ -1,0 +1,13 @@
+node_modules
+.next
+pnpm-lock.yaml
+src/generated
+public
+docs/*.pdf
+coverage
+playwright-report
+test-results
+AGENTS.md
+*.md
+prisma/sql
+.github

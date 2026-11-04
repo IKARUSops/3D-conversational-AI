@@ -1,0 +1,105 @@
+# Decisions log
+
+One line per decision. Newest at the bottom of each section. Format: `ID | date | decision | why`.
+
+## Owner decisions (binding)
+
+- O-01 | 2026-11-04 | Live STT default is the browser Web Speech API `bn-BD` (Chrome/Edge allowlist) | about 0 ms final text, digits correct in owner test
+- O-02 | 2026-11-04 | Server STT runs on VAD clips (ElevenLabs batch Scribe), never ElevenLabs realtime | batch CER 0.105 vs realtime 38.6% for Bangla
+- O-03 | 2026-11-04 | Server STT fallback order ElevenLabs, OpenAI, Azure (`bn-IN`) | owner choice, same order as TTS
+- O-04 | 2026-11-04 | TTS default ElevenLabs `eleven_v4`, voice `8U6QQz51HQvOsmbnTJ3D`; then OpenAI `gpt-4o-mini-tts`; Azure `bn-BD-NabanitaNeural` is the final fallback | only ElevenLabs model listing Bengali; Azure sounded generated
+- O-05 | 2026-11-04 | STT and TTS dropdowns in the call UI, auto fallback to the next provider, logged in call_events | resilience and demo value
+- O-06 | 2026-11-04 | BYOK for ElevenLabs, OpenAI, Azure, AES-256-GCM encrypted per clinic; calls record key source | product requirement
+- O-07 | 2026-11-04 | Record caller audio in the browser, re-transcribe after the call with ElevenLabs batch | fast live turns plus accurate record
+- O-08 | 2026-11-04 | The LLM formats spoken values (digits, names, date phrases); code only normalises and validates | avoid a large spoken-number parser
+- O-09 | 2026-11-04 | Echo filter on by default; headphones recommended; laptop-speaker echo is a known limitation | owner tested with headphones only
+- O-10 | 2026-11-04 | Concept 3D mascot (feminine Byte) from Blender, 4 clips Idle/Listening/Thinking/Speaking | SRS 3
+- O-11 | 2026-11-04 | Database stays Supabase (Singapore) with Prisma; 3-layer keep-alive (UptimeRobot 30 min, GitHub Actions 6 h, Vercel cron daily) | relational schema, unique index, auth + storage in one place
+- O-12 | 2026-11-04 | Host on Vercel, functions in `sin1` | close to Bangladesh, no sleeping servers
+- O-13 | 2026-11-04 | Two domains on one Vercel project: landing and `-portal`; portal host redirects `/` to `/portal` | owner choice
+- O-14 | 2026-11-04 | Build in the cloud workspace; agents never add a remote or push; owner commits and pushes | owner rule
+
+## Lead decisions (Phase 0)
+
+- D-01 | 2026-11-04 | Next.js 16.4.5, React 19.3; middleware file is `src/proxy.ts` exporting `proxy` | Next 16 renamed Middleware to Proxy
+- D-02 | 2026-11-04 | Prisma 7.10.1 (latest stable; 8.0 is still rc) with `@prisma/adapter-pg` | current stable
+- D-03 | 2026-11-04 | Prisma 7 does not allow `url`/`directUrl` in schema.prisma: CLI url is in `prisma.config.ts` (DIRECT_URL, falls back to DATABASE_URL); the app passes DATABASE_URL (pooled) to the pg adapter in `src/lib/db.ts` | closest working option to SRS 2 section 6
+- D-04 | 2026-11-04 | Prisma client generated to `src/generated/prisma` (gitignored) by `postinstall`, `build` and `typecheck`; import `db` from `@/lib/db` | Prisma 7 `prisma-client` generator needs an output path
+- D-05 | 2026-11-04 | Cache Components and partial prefetching OFF in next.config.ts | SRS relies on `dynamic = "force-dynamic"` (SSE, health), which Cache Components removes
+- D-06 | 2026-11-04 | Tailwind 4 through the `@tailwindcss/turbopack` loader (create-next-app 16.4 default), no PostCSS config | default of the installed version
+- D-07 | 2026-11-04 | No `next/font/google` in Phase 0; Agent D adds Hind Siliguri + Inter | font download at build time needs network
+- D-08 | 2026-11-04 | AI SDK is v7 (`ai@7.0.162`, `@ai-sdk/google@4`, `@ai-sdk/openai@4`); zod v4 | current stable; Agent B checks option names (`stopWhen`, `maxOutputTokens`, `inputSchema`) in node_modules
+- D-09 | 2026-11-04 | DB naming: snake_case tables/columns via @@map/@map, camelCase in Prisma, uuid ids, timestamptz(3), created_at/updated_at on every table | SRS 2 section 6.1 and raw SQL uses snake_case
+- D-10 | 2026-11-04 | `doctor_schedules.weekday` uses JS getDay (0 = Sunday, 5 = Friday); times are "HH:MM" text, end exclusive | simple to compute in Asia/Dhaka without Time types
+- D-11 | 2026-11-04 | Clinic facts (hours, prayer break, slot length, lead time, directions, preparation, payment, parking, default providers) in `clinics.settings` JSON, shape `ClinicSettingsSchema` | small, read together, no extra tables
+- D-12 | 2026-11-04 | Stable `code` on doctors and services (unique per clinic); `ServiceCode` enum: checkup, scaling, filling, root_canal, extraction, braces_consultation, xray | idempotent seed and tool inputs
+- D-13 | 2026-11-04 | `call_events.type` is text validated by `EventType`; `call_id` nullable for clinic-level events; added event `byok_key_updated` | new event types need no migration
+- D-14 | 2026-11-04 | `staff_users.read_only` flag: reviewer is admin with read-only Settings | SRS 1 section 3
+- D-15 | 2026-11-04 | `transcript_turns` unique on (call_id, source, seq); extra `input_mode` column | idempotent saves, typed turns visible
+- D-16 | 2026-11-04 | `calls.last_activity_at` column + index with processing_state | stale call finalize (SRS 2 section 9 step 10)
+- D-17 | 2026-11-04 | Contract additions: `StartCallRequest.reviewKey` (FR-B12), `TurnRequest.echoFilteredCount`, `AgentState.lastTurnSeq/nextAgentSeq/ended`, `ApiErrorSchema` + `API_ERROR_STATUS`, `LIMITS`, `HEADERS`, `SSE_HEADERS` | needed by the SRS flows but not named there
+- D-18 | 2026-11-04 | Call token format `<callId>.<clinicId>.<expiresAt>.<base64url HMAC>`, expiresAt in unix seconds | SRS 2 section 5.3
+- D-19 | 2026-11-04 | `pnpm build` never needs env; env is read lazily. `pnpm env:check` is separate; on Vercel use Build Command `pnpm env:check && pnpm build` | build must pass without secrets, deploy should fail fast without them
+- D-20 | 2026-11-04 | `vercel.json` sets only `regions` and the daily cron; long routes export `maxDuration = 60` | path globs with `[id]` in vercel.json are fragile
+- D-21 | 2026-11-04 | PrismaPg pool `max: 3` per instance; the `?pgbouncer=true&connection_limit=1` URL params are Prisma engine params and are ignored by the pg adapter | small pool on serverless with Supabase pooler (port 6543)
+- D-22 | 2026-11-04 | `/api/health` is public, has a 5 s DB timeout, returns 503 `{ok:false, db:false}` on failure; keep-alive sends CRON_SECRET as bearer but health does not require it | uptime monitors need a simple public check
+- D-23 | 2026-11-04 | Basic security headers in next.config.ts (`Permissions-Policy: microphone=(self)`, nosniff, frame deny, referrer policy); CSP added later when provider origins are final | avoid breaking 3D/audio early
+- D-24 | 2026-11-04 | Playwright uses its own Chromium by default; `PLAYWRIGHT_CHROMIUM_EXECUTABLE` overrides it | build machine has system Chrome only
+- D-25 | 2026-11-04 | Prettier ignores Markdown (docs are hand-written) and generated code | keep owner docs untouched
+
+## Agent A decisions (data and backend)
+
+- A-01 | 2026-11-04 | Migrations made offline: `prisma/migrations/0001_init` from `prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script`, and `0002_constraints_rls` is a copy of `prisma/sql/001_constraints_rls.sql`. Owner runs `pnpm db:deploy` once, then `pnpm db:seed` | no database on the build machine; deploy applies both in order
+- A-02 | 2026-11-04 | DB tests use PGlite (`@electric-sql/pglite` + `@electric-sql/pglite-socket`, devDependencies) behind a local socket, so Prisma 7 + `@prisma/adapter-pg` run unchanged on the real migration SQL (partial unique index, pg_trgm, RLS). Helper: `tests/support/pglite-db.ts`; tests mock `@/lib/db` with `tests/support/db-mock.ts` | proves the double-booking index and transactions without network
+- A-03 | 2026-11-04 | Services use a fixed UTC+06:00 offset for Asia/Dhaka (`src/lib/services/time.ts`) | Bangladesh has no daylight saving; simpler and exact
+- A-04 | 2026-11-04 | Slot `start` values are ISO with `+06:00` (contract example); `spokenBn` uses Bangla words ("রবিবার, আট নভেম্বর, সন্ধ্যা ছয়টা, ডা. নুসরাত জাহান"). Small local speaker in `src/lib/services/spoken-bn.ts` until Agent B's `src/lib/text` lands | TTS-ready text, no cross-agent import yet
+- A-05 | 2026-11-04 | Availability: when the requested day has no slot (or is Friday / past), offer up to 3 slots over the next 3 open days, best slot per day first. A named doctor is used for any service except braces (orthodontist only) | SRS 2 section 7.6; gives the caller different days to choose from
+- A-06 | 2026-11-04 | `find_appointments` only searches the confirmed phone in agent state; a different `phoneRaw` returns `invalid_phone`. Reschedule and cancel only touch appointments owned by that phone. Book needs confirmed name and phone; reschedule and cancel need the confirmed phone | privacy (SRS 2 section 10), FR-C18
+- A-07 | 2026-11-04 | Status `enquiry` = an info tool was used (get_clinic_info, check_availability, find_appointments, resolve_datetime) or intent is enquiry and the caller spoke; `failed` = end reason `error` and nothing more useful; everything else falls to `incomplete` | SRS 1 section 4.5.1; clinic facts are also in the prompt, so intent is needed as a signal
+- A-08 | 2026-11-04 | POST /api/calls stores the greeting as live transcript turn seq 0 (agent). The turn loop continues from seq 1 | the transcript starts with what the caller heard
+- A-09 | 2026-11-04 | Rate limits are DB fixed windows (`rate_limits`): `call_ip` 30/hour (env), `call_day` global daily cap at Dhaka midnight (applies to reviewers too), `demo_ip` 5/hour. The reviewer key only skips the per-IP limit | FR-B12 wording; cost control
+- A-10 | 2026-11-04 | Finalize runs in `after()` from /end and from the stale sweep (after every POST /api/calls). Sweep finalizes `pending` calls idle 3 min (as `tab_closed`) or ended 3 min ago, and resets `running` runs older than 6 min | covers closed tabs and runs killed by the 60 s limit
+- A-11 | 2026-11-04 | /end only stores a recording path equal to `clinic/{clinicId}/calls/{callId}.webm`; /recording-url refuses ended calls (409) | no arbitrary storage paths; client asks for the URL before /end
+- A-12 | 2026-11-04 | Seed also creates the private `recordings` bucket when Supabase admin env is set | one less manual owner step
+## Agent B decisions (voice)
+
+- B-01 | 2026-11-04 | AI SDK 7 names checked in node_modules: `streamText({ instructions, messages, tools, stopWhen: [stepCountIs(4), hasToolCall("end_call")], maxOutputTokens: 200, maxRetries: 0, abortSignal })`, stream parts `text-delta.text`, `tool-call`, `tool-result`, `finish-step`; `generateObject` is deprecated, so post-call uses `generateText({ output: Output.object({ schema }) })` | match installed versions
+- B-02 | 2026-11-04 | Gemini thinking off: `providerOptions.google.thinkingConfig.thinkingBudget = 0` for gemini-2.x; `thinkingLevel: "minimal"` for newer ids. OpenAI LLM fallback uses `openai.chat(id)` (Chat Completions) | latency
+- B-03 | 2026-11-04 | Server STT mode uses a small energy-based VAD (ScriptProcessorNode, 700 ms hang, 300 ms min speech, 15 s max clip) instead of `@ricky0123/vad-web` | no new dependency or lockfile change in a parallel build, no ONNX/wasm assets to host; noisy rooms may cut clips less precisely
+- B-04 | 2026-11-04 | First-token LLM fallback: if no text/tool part in 4 s, or an error before any output, abort and start the fallback LLM; log `provider_fallback {kind:"llm"}` | FR-C14
+- B-05 | 2026-11-04 | Silence prompts (FR-C16) are fixed lines on the server without the LLM; the 3rd silence says goodbye and sends `end_call` (reason "silence"). Caller speech resets the count. Typed-only calls use a 21 s silence timer | fast, predictable
+- B-06 | 2026-11-04 | Barge-in: an aborted agent turn is not saved; the next turn saves the spoken prefix as an interrupted agent turn, or trims the last agent turn if it was saved (`recordInterruption`) | avoids a race between two requests on the same turn
+- B-07 | 2026-11-04 | `book/reschedule/cancel` pre-check in code: name present, phone valid, name and phone confirmed, else `need_confirmation`/`missing_*` with a hint; `callerConfirmed: true` is enforced by the contract schema | FR-C18 code-side, defence in depth with services
+- B-08 | 2026-11-04 | `flag_off_topic` adds 2 for `abuse`, 1 otherwise; the streak resets after any turn without the tool | FR-C12
+- B-09 | 2026-11-04 | /api/tts and /api/stt check the call token only (no DB read) to save latency; /turn also checks the call is not ended and the clinic matches | latency on every sentence
+- B-10 | 2026-11-04 | TTS language for each sentence is detected by script (Bangla letters -> bn) so English sentences in a Bangla call are not mangled by number words | code-switching
+- B-11 | 2026-11-04 | Android Chrome + browser STT: release our own mic capture and skip the recording (and mic level) because Web Speech and a second capture conflict | SRS 2 section 8.5
+- B-12 | 2026-11-04 | "Type instead" also works without a microphone: `call.start({ textOnly: true })` | FR-B13 says testers without a mic must be able to use the agent
+- B-13 | 2026-11-04 | Unverified provider details, check on deploy: (verify) ElevenLabs `eleven_v4` on the `/stream` endpoint and whether it accepts `language_code` (sent only if env ELEVENLABS_TTS_LANGUAGE_CODE is set); (verify) ElevenLabs STT `scribe_v2` with `language_code=ben`, `timestamps_granularity=word`; (verify) OpenAI STT id `gpt-transcribe` (listed in @ai-sdk/openai types) with `response_format=json`; (verify) OpenAI TTS voice `coral`; (verify) Azure fast transcription endpoint `speechtotext/transcriptions:transcribe?api-version=2024-11-15` accepts WebM for post-call; (verify) Supabase signed upload URL accepts a raw `PUT` of the webm | no network to providers from the build machine
+
+## Agent C+D decisions (portal, landing, 3D)
+
+- D-C01 | 2026-11-04 | Portal login is a server action (signInWithPassword through @supabase/ssr server client), not a browser form | no NEXT_PUBLIC env needed in the client bundle at build time; credentials never touch client JS
+- D-C02 | 2026-11-04 | Auth guard in every page and in the (app) layout via requireStaff(); proxy only refreshes the session | layouts do not re-run on client navigation; proxy must stay light
+- D-C03 | 2026-11-04 | ER diagram is a hand-built SVG (src/components/portal/data-model/ErDiagram.tsx), not mermaid | no new dependency (no lockfile conflict), themeable with tokens, no client JS
+- D-C04 | 2026-11-04 | Call panel contract for Agent B: `CallPanel(props: { open: boolean; onClose(): void; lang: "bn" or "en"; onMascotChange(signal: Partial<{ state: "idle" or "listening" or "thinking" or "speaking"; getAgentLevel(): number; getCallerLevel(): number }>): void })`. CallPanel calls onMascotChange once with the two getters from useCall and again on every mascotState change. Loaded lazily through src/components/landing/call-adapter.ts | one-line merge, mascot never re-renders on level changes
+- D-C05 | 2026-11-04 | Landing is always the dark brand theme (data-theme="dark" on its wrapper); portal is light by default, follows the OS, and has a toggle saved in localStorage | brand look on landing, readability in the portal
+- D-C06 | 2026-11-04 | Portal UI text is English inline (CLAUDE.md: English portal); only landing text is in the i18n dictionary | time; portal data stays Bangla
+- D-C07 | 2026-11-04 | Draco decoder self-hosted in public/draco (wasm + wrapper from three) instead of the gstatic CDN | no third-party request, works with a strict CSP later
+- D-C08 | 2026-11-04 | Fonts through next/font/google (Hind Siliguri bengali+latin 400 to 700, Inter) | build machine and Vercel have network; self-hosted at build
+- D-C09 | 2026-11-04 | Three.js files disable the react-hooks/immutability lint rule at file level | scene objects are mutated in useFrame by design
+- D-C10 | 2026-11-04 | BYOK "Test key" uses one free request per provider (ElevenLabs GET /v1/user, OpenAI GET /v1/models, Azure POST issueToken) | cheapest check, no audio cost
+- D-C11 | 2026-11-04 | Pricing on the landing page is labelled as example prices; reminder calls are tagged "coming soon" | no invented facts presented as real
+
+## Integration decisions (I)
+
+- I-01 | 2026-11-04 | Hero dialog `HeroCallPanel` (src/components/landing) owns one `useCall` and passes it to CallPanel; level getters go to MascotBridge once, `mascotState` on each change. Smoothing stays on the mascot side (StateGate: 400 ms min per state, Thinking only after 300 ms), already used by ByteMascot and VoiceOrb. `?key=` read once on open; `?stt=` read by CallPanel. Closing the dialog unmounts useCall, which ends the call | one controller, mascot never re-renders on audio levels
+- I-02 | 2026-11-04 | Start call: Agent A already stored `createInitialAgentState(lang)` and the greeting as live agent turn seq 0; integration only added `ttsNormalize` for `greeting.ttsText`. Transcript seq comes from max(seq)+1 (caller turn is seq 1). `nextAgentSeq` is the SSE sentence seq (0, 1, ...); the client queues the greeting at seq -1, so the two never clash | both sides were consistent
+- I-03 | 2026-11-04 | One call-auth module: `src/lib/services/call-auth.ts` has `requireCallToken` (token only, no DB read: /stt, /tts, /turn) and `authorizeCall` (token + DB: /end, /recording-url). `src/lib/agent/auth.ts` removed. Activity: /turn updates `calls.last_activity_at` at the start (claiming turnSeq) and end of every turn through `saveState`; /stt and /tts do not write the DB (latency, B-09), and every STT clip or TTS sentence belongs to a turn that already updates it | stale sweep (3 min) never ends a live call
+- I-04 | 2026-11-04 | Portal stale sweep runs in `after()` (fire and forget) so finalize work never slows or breaks the calls page | SRS 2 section 9 step 10
+- I-05 | 2026-11-04 | env.ts lists every runtime var (incl. B's model/voice overrides with defaults and seed-only vars); `OPTIONAL_SERVER_VARS` is derived from the schema; `pnpm env:check` prints required vs optional as set/not set (never values); a unit test keeps .env.example and env.ts in sync. Tooling vars (E2E_BASE_URL, PORT, PLAYWRIGHT_CHROMIUM_EXECUTABLE, CI) are commented in .env.example only | one source of truth
+- I-06 | 2026-11-04 | Footer repo link is https://github.com/IKARUSops/3D-conversational-AI | owner value
+- I-07 | 2026-11-04 | `ClinicContext.services[].feeIsFrom` (DB column existed, seed sets it) replaces the code-based guess in clinic-info and the prompt facts | data, not code
+- I-08 | 2026-11-04 | Contract addition `AgentState.offeredSlotDetails[{start, doctorId}]` and `foundAppointments[{appointmentId, slotStart, doctorNameBn}]`, rendered in the prompt's "WHAT WE KNOW SO FAR" with exact values. Found by the full-flow test: tool results are not in the next turn's history, so the LLM had no doctorId/appointmentId to book or reschedule in a later turn | booking across turns works
+- I-09 | 2026-11-04 | POST /api/calls answers 503 `provider_unavailable` "The voice demo is not configured on this server yet" when DATABASE_URL, CALL_TOKEN_SECRET, IP_HASH_SALT or an LLM key is missing (was a 500 from a thrown error) | clear message, no crash, without env
+- I-10 | 2026-11-04 | Full-flow test (tests/unit/full-flow.test.ts) calls the real route handlers on PGlite with `MockLanguageModelV4` scripted per step (it reads earlier tool results and the system prompt, like a real model), `Date` faked to 2026-11-04 11:00 Dhaka, `after()` tasks awaited, post-call `transcribeRecording`/`extractCallFields`/`translateTurnsToEnglish` mocked (extraction uses the real `mergeExtraction`) | covers the real code path without network

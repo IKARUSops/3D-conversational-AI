@@ -1,0 +1,55 @@
+import type { ClinicContext } from "@/lib/services";
+
+/** Dhaka Dental Care as in SRS 1 section 4.4 (test fixture). */
+export const CLINIC: ClinicContext = {
+  id: "11111111-1111-4111-8111-111111111111",
+  slug: "dhaka-dental-care",
+  nameBn: "ঢাকা ডেন্টাল কেয়ার",
+  nameEn: "Dhaka Dental Care",
+  timezone: "Asia/Dhaka",
+  addressBn: "বাড়ি ১২, রোড ৭, ধানমন্ডি, ঢাকা ১২০৫",
+  addressEn: "House 12, Road 7, Dhanmondi, Dhaka 1205",
+  phoneDisplay: "+880 1700-000000",
+  settings: {
+    openWeekdays: [0, 1, 2, 3, 4, 6],
+    open: "10:00",
+    close: "20:00",
+    prayerBreak: { start: "13:30", end: "14:30" },
+    slotMinutes: 30,
+    leadMinutes: 30,
+    landmarkBn: "ধানমন্ডি লেকের কাছে",
+    landmarkEn: "Near Dhanmondi Lake",
+    directionsBn: "শংকর বাসস্ট্যান্ড থেকে পাঁচ মিনিট",
+    directionsEn: "5 minutes from Shankar bus stand",
+    preparationBn: "পুরনো প্রেসক্রিপশন ও এক্স-রে নিয়ে আসবেন। ১৫ মিনিট আগে আসবেন।",
+    preparationEn: "Bring old prescriptions and X-rays. Arrive 15 minutes early.",
+    paymentBn: "ক্যাশ, বিকাশ, কার্ড",
+    paymentEn: "Cash, bKash, card",
+    parkingBn: "সীমিত পার্কিং",
+    parkingEn: "Limited parking",
+    defaultStt: "browser",
+    defaultTts: "elevenlabs",
+  },
+  doctors: [
+    {
+      id: "doc-nusrat",
+      code: "nusrat",
+      nameBn: "ডা. নুসরাত জাহান",
+      nameEn: "Dr. Nusrat Jahan",
+      specialty: "general",
+      schedule: [0, 1, 2, 3, 4, 6].map((weekday) => ({ weekday, start: "10:00", end: "20:00" })),
+    },
+    {
+      id: "doc-tanvir",
+      code: "tanvir",
+      nameBn: "ডা. তানভীর আহমেদ",
+      nameEn: "Dr. Tanvir Ahmed",
+      specialty: "orthodontist",
+      schedule: [6, 1, 3].map((weekday) => ({ weekday, start: "16:00", end: "20:00" })),
+    },
+  ],
+  services: [
+    { code: "checkup", nameBn: "চেকআপ", nameEn: "Check-up", durationMin: 30, feeBdtFrom: 500, feeIsFrom: false, specialtyRequired: null },
+    { code: "scaling", nameBn: "স্কেলিং", nameEn: "Scaling and polishing", durationMin: 30, feeBdtFrom: 1500, feeIsFrom: false, specialtyRequired: null },
+  ],
+};

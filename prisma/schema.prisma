@@ -1,0 +1,569 @@
+// ByteVoice Bangla: database schema (SRS 1 section 5.1, SRS 2 section 6).
+//
+// Conventions
+// - Table and column names are snake_case in Postgres (@@map / @map); Prisma fields are camelCase.
+// - Every id is a UUID. Every table has created_at and updated_at.
+// - Every timestamp is timestamptz. Render times in Asia/Dhaka in the UI.
+// - Extra SQL that Prisma cannot express (partial unique index, trigram index, RLS) lives in
+//   prisma/sql/001_constraints_rls.sql. Read its header before running any migration.
+//
+// Prisma 7: the connection URL is NOT in this file. The CLI reads it from prisma.config.ts
+// (DIRECT_URL for migrations) and the app passes DATABASE_URL to the pg driver adapter
+// (src/lib/db.ts). See docs/DECISIONS.md.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums (keep in sync with src/contracts/enums.ts)
+// ---------------------------------------------------------------------------
+
+enum CallStatus {
+  processing
+  booked
+  rescheduled
+  cancelled
+  enquiry
+  follow_up_needed
+  incomplete
+  failed
+  spam
+}
+
+enum ProcessingState {
+  pending
+  running
+  done
+  failed
+}
+
+enum Speaker {
+  agent
+  caller
+  system
+}
+
+enum TranscriptSource {
+  live
+  batch
+}
+
+enum InputMode {
+  voice
+  typed
+}
+
+enum Intent {
+  book
+  reschedule
+  cancel
+  enquiry
+  callback
+  other
+  unknown
+}
+
+enum EndReason {
+  caller_hangup
+  agent_end
+  time_limit
+  silence
+  error
+  tab_closed
+}
+
+enum SttProviderId {
+  browser
+  elevenlabs
+  openai
+  azure
+}
+
+enum TtsProviderId {
+  elevenlabs
+  openai
+  azure
+}
+
+/// Providers a clinic can bring its own key for (BYOK).
+enum KeyProvider {
+  elevenlabs
+  openai
+  azure
+}
+
+enum KeySource {
+  platform
+  byok
+}
+
+enum CallLang {
+  bn
+  en
+}
+
+enum StaffRole {
+  admin
+  receptionist
+}
+
+enum Specialty {
+  general
+  orthodontist
+  oral_surgeon
+}
+
+enum AppointmentStatus {
+  booked
+  rescheduled
+  cancelled
+  completed
+  no_show
+}
+
+enum AppointmentAction {
+  created
+  rescheduled
+  cancelled
+}
+
+enum CallbackCategory {
+  medical
+  urgent
+  complaint
+  billing
+  human_request
+  unknown_info
+  other
+}
+
+enum CallbackStatus {
+  open
+  done
+}
+
+enum Priority {
+  low
+  normal
+  high
+  urgent
+}
+
+enum Sentiment {
+  positive
+  neutral
+  negative
+}
+
+enum LanguageMix {
+  bn
+  en
+  mixed
+}
+
+// ---------------------------------------------------------------------------
+// Clinic, staff, doctors, services
+// ---------------------------------------------------------------------------
+
+/// Tenant. One row per clinic. `settings` holds hours, prayer break, slot length and the
+/// fixed answer texts; its shape is `ClinicSettings` in src/contracts/api.ts.
+model Clinic {
+  id           String   @id @default(uuid()) @db.Uuid
+  slug         String   @unique
+  nameBn       String   @map("name_bn")
+  nameEn       String   @map("name_en")
+  timezone     String   @default("Asia/Dhaka")
+  phoneDisplay String?  @map("phone_display")
+  addressBn    String?  @map("address_bn")
+  addressEn    String?  @map("address_en")
+  settings     Json     @default("{}")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  staff        StaffUser[]
+  doctors      Doctor[]
+  services     Service[]
+  patients     Patient[]
+  calls        Call[]
+  appointments Appointment[]
+  callbacks    Callback[]
+  providerKeys ProviderKey[]
+
+  @@map("clinics")
+}
+
+/// Portal user. `id` equals the Supabase auth user id (auth.users.id).
+model StaffUser {
+  id        String    @id @db.Uuid
+  clinicId  String    @map("clinic_id") @db.Uuid
+  role      StaffRole
+  name      String
+  email     String    @unique
+  /// Reviewer account is admin but cannot edit BYOK keys (SRS 1 section 3).
+  readOnly  Boolean   @default(false) @map("read_only")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  clinic        Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  callbacksDone Callback[]    @relation("CallbackDoneBy")
+  providerKeys  ProviderKey[] @relation("ProviderKeyCreatedBy")
+
+  @@index([clinicId])
+  @@map("staff_users")
+}
+
+model Doctor {
+  id        String    @id @default(uuid()) @db.Uuid
+  clinicId  String    @map("clinic_id") @db.Uuid
+  /// Stable short code used by the seed and the agent, for example "nusrat-jahan".
+  code      String
+  nameBn    String    @map("name_bn")
+  nameEn    String    @map("name_en")
+  specialty Specialty
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  clinic       Clinic           @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  schedules    DoctorSchedule[]
+  appointments Appointment[]
+
+  @@unique([clinicId, code])
+  @@map("doctors")
+}
+
+/// Weekly availability. weekday uses JS Date.getDay(): 0 = Sunday ... 5 = Friday, 6 = Saturday.
+/// Times are local clinic time "HH:MM" (24 h), end exclusive.
+model DoctorSchedule {
+  id        String   @id @default(uuid()) @db.Uuid
+  doctorId  String   @map("doctor_id") @db.Uuid
+  weekday   Int      @db.SmallInt
+  startTime String   @map("start_time") @db.VarChar(5)
+  endTime   String   @map("end_time") @db.VarChar(5)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@unique([doctorId, weekday, startTime])
+  @@map("doctor_schedules")
+}
+
+model Service {
+  id                String     @id @default(uuid()) @db.Uuid
+  clinicId          String     @map("clinic_id") @db.Uuid
+  /// Stable code used by tools, for example "scaling" (see ServiceCode in contracts).
+  code              String
+  nameBn            String     @map("name_bn")
+  nameEn            String     @map("name_en")
+  durationMin       Int        @default(30) @map("duration_min")
+  feeBdtFrom        Int        @map("fee_bdt_from")
+  /// true when the fee is a starting price ("from 2,000").
+  feeIsFrom         Boolean    @default(false) @map("fee_is_from")
+  specialtyRequired Specialty? @map("specialty_required")
+  active            Boolean    @default(true)
+  createdAt         DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  clinic       Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+
+  @@unique([clinicId, code])
+  @@map("services")
+}
+
+// ---------------------------------------------------------------------------
+// Patients and calls
+// ---------------------------------------------------------------------------
+
+/// Person behind calls. Identity = clinic + normalised phone (E.164).
+model Patient {
+  id         String   @id @default(uuid()) @db.Uuid
+  clinicId   String   @map("clinic_id") @db.Uuid
+  fullNameBn String?  @map("full_name_bn")
+  /// Romanised name (for search).
+  fullNameEn String?  @map("full_name_en")
+  phoneE164  String   @map("phone_e164")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  clinic       Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  calls        Call[]
+  appointments Appointment[]
+  callbacks    Callback[]
+
+  @@unique([clinicId, phoneE164])
+  @@map("patients")
+}
+
+/// One row per browser call.
+model Call {
+  id              String          @id @default(uuid()) @db.Uuid
+  clinicId        String          @map("clinic_id") @db.Uuid
+  patientId       String?         @map("patient_id") @db.Uuid
+  startedAt       DateTime        @default(now()) @map("started_at") @db.Timestamptz(3)
+  endedAt         DateTime?       @map("ended_at") @db.Timestamptz(3)
+  /// Last caller or agent activity; used to finalize stale calls (SRS 2 section 9 step 10).
+  lastActivityAt  DateTime        @default(now()) @map("last_activity_at") @db.Timestamptz(3)
+  durationS       Int?            @map("duration_s")
+  status          CallStatus      @default(processing)
+  processingState ProcessingState @default(pending) @map("processing_state")
+  intent          Intent?
+  endReason       EndReason?      @map("end_reason")
+  lang            CallLang        @default(bn)
+  /// Provider chosen at start. Fallbacks during the call are in call_events.
+  sttProvider     SttProviderId   @map("stt_provider")
+  ttsProvider     TtsProviderId   @map("tts_provider")
+  llmModel        String?         @map("llm_model")
+  keySource       KeySource       @default(platform) @map("key_source")
+  /// Storage path in the private "recordings" bucket.
+  recordingPath   String?         @map("recording_path")
+  summaryBn       String?         @map("summary_bn")
+  summaryEn       String?         @map("summary_en")
+  ipHash          String?         @map("ip_hash")
+  userAgent       String?         @map("user_agent")
+  /// Live agent state (AgentState in src/contracts/agent.ts). Server is the source of truth.
+  agentState      Json            @default("{}") @map("agent_state")
+  /// Latency summary (CallMetrics in src/contracts/api.ts).
+  metrics         Json?
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  clinic              Clinic               @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patient             Patient?             @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  turns               TranscriptTurn[]
+  extraction          CallExtraction?
+  events              CallEvent[]
+  callbacks           Callback[]
+  appointmentsCreated Appointment[]        @relation("AppointmentCreatedBy")
+  appointmentsUpdated Appointment[]        @relation("AppointmentUpdatedBy")
+  appointmentHistory  AppointmentHistory[]
+
+  @@index([clinicId, startedAt(sort: Desc)])
+  @@index([status])
+  @@index([processingState, lastActivityAt])
+  @@index([patientId])
+  @@map("calls")
+}
+
+model TranscriptTurn {
+  id            String           @id @default(uuid()) @db.Uuid
+  callId        String           @map("call_id") @db.Uuid
+  /// Order inside the call, per source. Live turns: 0, 1, 2 ... in speaking order.
+  seq           Int
+  speaker       Speaker
+  /// Text as said (Bangla, English or mixed), NFC normalised.
+  textBn        String           @map("text_bn")
+  /// English translation (Could).
+  textEn        String?          @map("text_en")
+  /// Milliseconds from call start.
+  startedMs     Int?             @map("started_ms")
+  endedMs       Int?             @map("ended_ms")
+  source        TranscriptSource @default(live)
+  inputMode     InputMode?       @map("input_mode")
+  /// Agent turn cut short by barge-in; textBn then holds only the spoken prefix.
+  interrupted   Boolean          @default(false)
+  sttConfidence Float?           @map("stt_confidence")
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@unique([callId, source, seq])
+  @@index([callId, seq])
+  @@map("transcript_turns")
+}
+
+/// Structured fields extracted after the call (1:1 with calls).
+model CallExtraction {
+  id                    String       @id @default(uuid()) @db.Uuid
+  callId                String       @unique @map("call_id") @db.Uuid
+  intent                Intent?
+  patientNameBn         String?      @map("patient_name_bn")
+  patientNameEn         String?      @map("patient_name_en")
+  phoneRaw              String?      @map("phone_raw")
+  phoneE164             String?      @map("phone_e164")
+  phoneValid            Boolean      @default(false) @map("phone_valid")
+  reasonForVisit        String?      @map("reason_for_visit")
+  serviceCode           String?      @map("service_code")
+  doctorRequested       String?      @map("doctor_requested")
+  preferredDatetimeText String?      @map("preferred_datetime_text")
+  preferredDatetime     DateTime?    @map("preferred_datetime") @db.Timestamptz(3)
+  callerConfirmed       Boolean      @default(false) @map("caller_confirmed")
+  sentiment             Sentiment?
+  languageMix           LanguageMix? @map("language_mix")
+  fieldConfidence       Json?        @map("field_confidence")
+  validationErrors      Json?        @map("validation_errors")
+  model                 String?
+  raw                   Json?
+  createdAt             DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([phoneE164])
+  @@map("call_extractions")
+}
+
+// ---------------------------------------------------------------------------
+// Appointments and callbacks
+// ---------------------------------------------------------------------------
+
+/// No double booking: a partial unique index on (doctor_id, slot_start) where status is
+/// booked or rescheduled is created in prisma/sql/001_constraints_rls.sql.
+model Appointment {
+  id              String            @id @default(uuid()) @db.Uuid
+  clinicId        String            @map("clinic_id") @db.Uuid
+  patientId       String            @map("patient_id") @db.Uuid
+  doctorId        String            @map("doctor_id") @db.Uuid
+  serviceId       String?           @map("service_id") @db.Uuid
+  slotStart       DateTime          @map("slot_start") @db.Timestamptz(3)
+  slotEnd         DateTime          @map("slot_end") @db.Timestamptz(3)
+  status          AppointmentStatus @default(booked)
+  reason          String?
+  createdByCallId String?           @map("created_by_call_id") @db.Uuid
+  updatedByCallId String?           @map("updated_by_call_id") @db.Uuid
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  clinic        Clinic               @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patient       Patient              @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor        Doctor               @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+  service       Service?             @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  createdByCall Call?                @relation("AppointmentCreatedBy", fields: [createdByCallId], references: [id], onDelete: SetNull)
+  updatedByCall Call?                @relation("AppointmentUpdatedBy", fields: [updatedByCallId], references: [id], onDelete: SetNull)
+  history       AppointmentHistory[]
+
+  @@index([clinicId, slotStart])
+  @@index([doctorId, slotStart])
+  @@index([patientId])
+  @@map("appointments")
+}
+
+model AppointmentHistory {
+  id            String            @id @default(uuid()) @db.Uuid
+  appointmentId String            @map("appointment_id") @db.Uuid
+  callId        String?           @map("call_id") @db.Uuid
+  action        AppointmentAction
+  fromSlot      DateTime?         @map("from_slot") @db.Timestamptz(3)
+  toSlot        DateTime?         @map("to_slot") @db.Timestamptz(3)
+  at            DateTime          @default(now()) @db.Timestamptz(3)
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  call        Call?       @relation(fields: [callId], references: [id], onDelete: SetNull)
+
+  @@index([appointmentId, at])
+  @@index([callId])
+  @@map("appointment_history")
+}
+
+/// Human follow-up request created by the agent.
+model Callback {
+  id        String           @id @default(uuid()) @db.Uuid
+  clinicId  String           @map("clinic_id") @db.Uuid
+  callId    String?          @map("call_id") @db.Uuid
+  patientId String?          @map("patient_id") @db.Uuid
+  name      String?
+  phoneE164 String?          @map("phone_e164")
+  category  CallbackCategory
+  reason    String
+  priority  Priority         @default(normal)
+  status    CallbackStatus   @default(open)
+  note      String?
+  doneById  String?          @map("done_by") @db.Uuid
+  doneAt    DateTime?        @map("done_at") @db.Timestamptz(3)
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  clinic  Clinic     @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  call    Call?      @relation(fields: [callId], references: [id], onDelete: SetNull)
+  patient Patient?   @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  doneBy  StaffUser? @relation("CallbackDoneBy", fields: [doneById], references: [id], onDelete: SetNull)
+
+  @@index([clinicId, status, priority])
+  @@index([callId])
+  @@map("callbacks")
+}
+
+// ---------------------------------------------------------------------------
+// Audit, keys, landing form, rate limits
+// ---------------------------------------------------------------------------
+
+/// Audit trail. `type` is one of EventType in src/contracts/enums.ts (kept as text so new
+/// event types need no migration). callId is null for clinic-level events such as
+/// byok_key_updated.
+model CallEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  callId    String?  @map("call_id") @db.Uuid
+  ts        DateTime @default(now()) @db.Timestamptz(3)
+  type      String
+  payload   Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  call Call? @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([callId, ts])
+  @@index([type, ts])
+  @@map("call_events")
+}
+
+/// BYOK provider key, AES-256-GCM encrypted (src/lib/crypto.ts). Never returned to the browser.
+model ProviderKey {
+  id          String      @id @default(uuid()) @db.Uuid
+  clinicId    String      @map("clinic_id") @db.Uuid
+  provider    KeyProvider
+  ciphertext  String
+  iv          String
+  authTag     String      @map("auth_tag")
+  last4       String      @db.VarChar(4)
+  /// Extra non-secret config, for example the Azure region.
+  meta        Json?
+  validatedAt DateTime?   @map("validated_at") @db.Timestamptz(3)
+  createdById String?     @map("created_by") @db.Uuid
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  clinic    Clinic     @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  createdBy StaffUser? @relation("ProviderKeyCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([clinicId, provider])
+  @@map("provider_keys")
+}
+
+/// Landing page contact / demo request form (FR-A7).
+model DemoRequest {
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String
+  clinicName String   @map("clinic_name")
+  phone      String
+  email      String?
+  message    String?
+  ipHash     String?  @map("ip_hash")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([createdAt(sort: Desc)])
+  @@map("demo_requests")
+}
+
+/// Fixed-window counters. key = "<scope>:<ip_hash or global>:<window start ISO>".
+model RateLimit {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  count       Int      @default(0)
+  windowStart DateTime @map("window_start") @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([windowStart])
+  @@map("rate_limits")
+}

@@ -1,0 +1,31 @@
+# Keep-alive layer 2 of 3 (NFR-1): calls /api/health every 6 hours so the Supabase free
+# project sees real database activity and does not pause.
+# Setup: GitHub repo > Settings > Secrets and variables > Actions > Variables:
+#   APP_URL = https://<your-landing-domain>   (no trailing slash)
+# Optional secret CRON_SECRET is sent as a bearer token.
+name: keepalive
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping health endpoint
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ]; then
+            echo "Repository variable APP_URL is not set"; exit 1
+          fi
+          curl -fsS --retry 3 --retry-delay 10 --max-time 30 \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "$APP_URL/api/health"

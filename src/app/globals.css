@@ -1,0 +1,336 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens from docs/DESIGN.md (T4.0). Raw colour values live ONLY in this file.
+ * Components use the Tailwind names (bg-bg, text-fg, bg-primary, bg-status-booked-bg ...).
+ *
+ * Theme rules:
+ * - :root holds the light values.
+ * - Dark values apply when the OS prefers dark (unless data-theme="light"), or on any element
+ *   with data-theme="dark" (the landing wrapper always sets it; the portal toggle sets it on <html>).
+ */
+
+:root {
+  /* brand scales */
+  --navy-950: #060f26;
+  --navy-900: #0b1b3f;
+  --navy-800: #12275a;
+  --navy-700: #1c3673;
+  --navy-500: #3d5a9e;
+  --gold-600: #d49a00;
+  --gold-500: #f5b700;
+  --gold-300: #ffd866;
+  --gold-100: #fff3cc;
+  --sand-50: #fbf8f2;
+  --ink-900: #0e1726;
+
+  /* call states (same in both themes) */
+  --state-idle: #8c9ab8;
+  --state-listening: #2bc4a9;
+  --state-thinking: #ffc24d;
+  --state-speaking: #f5b700;
+  --state-error: #ff6b5e;
+
+  /* semantic: light */
+  --bg: var(--sand-50);
+  --surface: #ffffff;
+  --surface-2: #f3eee3;
+  --glass: rgb(255 255 255 / 0.7);
+  --border: #e4dccb;
+  --border-strong: #cfc4ad;
+  --fg: var(--ink-900);
+  --fg-muted: #4b5567;
+  --fg-subtle: #646d80;
+  --primary: var(--gold-500);
+  --primary-hover: var(--gold-600);
+  --on-primary: var(--navy-900);
+  --accent-fg: #8a6300;
+  --link: var(--navy-700);
+  --focus: var(--navy-700);
+  --success: #137a4b;
+  --warning: #9a5b00;
+  --danger: #b42318;
+  --info: #1f5fbf;
+  --shadow-card: 0 1px 2px rgb(11 27 63 / 0.06), 0 8px 24px rgb(11 27 63 / 0.06);
+
+  --status-processing-bg: #e8edf7;
+  --status-processing-fg: #344563;
+  --status-booked-bg: #ddf5e8;
+  --status-booked-fg: #0f6b40;
+  --status-rescheduled-bg: #dfebff;
+  --status-rescheduled-fg: #1d4e9e;
+  --status-cancelled-bg: #ecedef;
+  --status-cancelled-fg: #4a5160;
+  --status-enquiry-bg: #daf4f1;
+  --status-enquiry-fg: #0d6159;
+  --status-follow-up-bg: #fff1c7;
+  --status-follow-up-fg: #7a5200;
+  --status-incomplete-bg: #ffe8d6;
+  --status-incomplete-fg: #8a3d00;
+  --status-failed-bg: #fde2e0;
+  --status-failed-fg: #a11d12;
+  --status-spam-bg: #f8e1f0;
+  --status-spam-fg: #8a1f65;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: var(--navy-900);
+    --surface: var(--navy-800);
+    --surface-2: #0f2250;
+    --glass: rgb(255 255 255 / 0.06);
+    --border: rgb(255 255 255 / 0.1);
+    --border-strong: rgb(255 255 255 / 0.18);
+    --fg: #f4f6fb;
+    --fg-muted: #b5c0d8;
+    --fg-subtle: #8c9ab8;
+    --primary-hover: var(--gold-300);
+    --accent-fg: var(--gold-300);
+    --link: var(--gold-300);
+    --focus: var(--gold-500);
+    --success: #4ade9b;
+    --warning: #ffc266;
+    --danger: #ff8a80;
+    --info: #8cb8ff;
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.2);
+    --status-processing-bg: #1e2f57;
+    --status-processing-fg: #b9c7e6;
+    --status-booked-bg: #0e3a2a;
+    --status-booked-fg: #6ee7a8;
+    --status-rescheduled-bg: #15305f;
+    --status-rescheduled-fg: #9cc1ff;
+    --status-cancelled-bg: #2a3346;
+    --status-cancelled-fg: #c8cfdc;
+    --status-enquiry-bg: #0e3936;
+    --status-enquiry-fg: #6fe0d0;
+    --status-follow-up-bg: #3d300a;
+    --status-follow-up-fg: #ffd866;
+    --status-incomplete-bg: #40250f;
+    --status-incomplete-fg: #ffb27a;
+    --status-failed-bg: #461a1a;
+    --status-failed-fg: #ff9a90;
+    --status-spam-bg: #3d1733;
+    --status-spam-fg: #f59ad6;
+    color-scheme: dark;
+  }
+}
+
+[data-theme="dark"] {
+  --bg: var(--navy-900);
+  --surface: var(--navy-800);
+  --surface-2: #0f2250;
+  --glass: rgb(255 255 255 / 0.06);
+  --border: rgb(255 255 255 / 0.1);
+  --border-strong: rgb(255 255 255 / 0.18);
+  --fg: #f4f6fb;
+  --fg-muted: #b5c0d8;
+  --fg-subtle: #8c9ab8;
+  --primary-hover: var(--gold-300);
+  --accent-fg: var(--gold-300);
+  --link: var(--gold-300);
+  --focus: var(--gold-500);
+  --success: #4ade9b;
+  --warning: #ffc266;
+  --danger: #ff8a80;
+  --info: #8cb8ff;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.2);
+  --status-processing-bg: #1e2f57;
+  --status-processing-fg: #b9c7e6;
+  --status-booked-bg: #0e3a2a;
+  --status-booked-fg: #6ee7a8;
+  --status-rescheduled-bg: #15305f;
+  --status-rescheduled-fg: #9cc1ff;
+  --status-cancelled-bg: #2a3346;
+  --status-cancelled-fg: #c8cfdc;
+  --status-enquiry-bg: #0e3936;
+  --status-enquiry-fg: #6fe0d0;
+  --status-follow-up-bg: #3d300a;
+  --status-follow-up-fg: #ffd866;
+  --status-incomplete-bg: #40250f;
+  --status-incomplete-fg: #ffb27a;
+  --status-failed-bg: #461a1a;
+  --status-failed-fg: #ff9a90;
+  --status-spam-bg: #3d1733;
+  --status-spam-fg: #f59ad6;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-navy-950: var(--navy-950);
+  --color-navy-900: var(--navy-900);
+  --color-navy-800: var(--navy-800);
+  --color-navy-700: var(--navy-700);
+  --color-navy-500: var(--navy-500);
+  --color-gold-600: var(--gold-600);
+  --color-gold-500: var(--gold-500);
+  --color-gold-300: var(--gold-300);
+  --color-gold-100: var(--gold-100);
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-glass: var(--glass);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-on-primary: var(--on-primary);
+  --color-accent-fg: var(--accent-fg);
+  --color-link: var(--link);
+  --color-focus: var(--focus);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+
+  --color-state-idle: var(--state-idle);
+  --color-state-listening: var(--state-listening);
+  --color-state-thinking: var(--state-thinking);
+  --color-state-speaking: var(--state-speaking);
+  --color-state-error: var(--state-error);
+
+  --color-status-processing-bg: var(--status-processing-bg);
+  --color-status-processing-fg: var(--status-processing-fg);
+  --color-status-booked-bg: var(--status-booked-bg);
+  --color-status-booked-fg: var(--status-booked-fg);
+  --color-status-rescheduled-bg: var(--status-rescheduled-bg);
+  --color-status-rescheduled-fg: var(--status-rescheduled-fg);
+  --color-status-cancelled-bg: var(--status-cancelled-bg);
+  --color-status-cancelled-fg: var(--status-cancelled-fg);
+  --color-status-enquiry-bg: var(--status-enquiry-bg);
+  --color-status-enquiry-fg: var(--status-enquiry-fg);
+  --color-status-follow-up-bg: var(--status-follow-up-bg);
+  --color-status-follow-up-fg: var(--status-follow-up-fg);
+  --color-status-incomplete-bg: var(--status-incomplete-bg);
+  --color-status-incomplete-fg: var(--status-incomplete-fg);
+  --color-status-failed-bg: var(--status-failed-bg);
+  --color-status-failed-fg: var(--status-failed-fg);
+  --color-status-spam-bg: var(--status-spam-bg);
+  --color-status-spam-fg: var(--status-spam-fg);
+
+  --font-sans: var(--font-hind), var(--font-inter), "Noto Sans Bengali", system-ui, sans-serif;
+  --font-latin: var(--font-inter), var(--font-hind), system-ui, sans-serif;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+
+  --shadow-card: var(--shadow-card);
+  --shadow-glow: 0 10px 40px rgb(245 183 0 / 0.25);
+
+  --text-display: clamp(2.25rem, 5vw, 3.75rem);
+  --text-display--line-height: 1.15;
+
+  --ease-brand: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-hind), var(--font-inter), "Noto Sans Bengali", system-ui, sans-serif;
+  line-height: 1.7;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Glass surface (hero chips, call panel, one highlighted card). */
+.glass {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+}
+
+@keyframes bv-pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.bv-pulse-dot {
+  animation: bv-pulse-dot 1.4s ease-in-out infinite;
+}
+
+@keyframes bv-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+.bv-float {
+  animation: bv-float 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Call panel (I-01): state chip colour per phase, caption speakers. Classes from CallPanel.tsx. */
+.call-panel__state::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: currentColor;
+}
+.call-panel__state[data-phase="idle"],
+.call-panel__state[data-phase="ended"] {
+  color: var(--state-idle);
+}
+.call-panel__state[data-phase="requesting_mic"],
+.call-panel__state[data-phase="connecting"],
+.call-panel__state[data-phase="thinking"],
+.call-panel__state[data-phase="ending"] {
+  color: var(--state-thinking);
+}
+.call-panel__state[data-phase="listening"] {
+  color: var(--state-listening);
+}
+.call-panel__state[data-phase="speaking"] {
+  color: var(--state-speaking);
+}
+.call-panel__state[data-phase="error"] {
+  color: var(--state-error);
+}
+.call-panel__state[data-phase="listening"]::before,
+.call-panel__state[data-phase="speaking"]::before {
+  animation: bv-pulse-dot 1.4s ease-in-out infinite;
+}
+.call-panel__caption {
+  border-left: 2px solid var(--border-strong);
+  padding-left: 0.625rem;
+}
+.call-panel__caption[data-speaker="agent"] {
+  border-left-color: var(--state-speaking);
+}
+.call-panel__caption[data-speaker="caller"] {
+  border-left-color: var(--state-listening);
+}
+.call-panel__select option:disabled {
+  color: var(--fg-subtle);
+}

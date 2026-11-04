@@ -65,3 +65,10 @@ desktop.ini
 !.vscode/extensions.json
 !.vscode/settings.json
 *.swp
+
+# ---- Generated Prisma client (run `pnpm db:generate`) ----
+src/generated/
+
+# ---- Private notes (never commit) ----
+docs/PROJECT-MEMORY.md
+docs/*Task_Brief*.pdf
