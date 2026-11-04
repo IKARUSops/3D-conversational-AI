@@ -102,6 +102,37 @@ async function availableChain<T extends ServerSttProviderId | TtsProviderId>(
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// Account errors (401/402/403): the provider will keep failing for this key, so skip it for a
+// while instead of paying the round trip on every sentence (TC-02: ElevenLabs 402 on a free plan).
+// Per warm server instance; the client also sticks to the provider that worked.
+// ---------------------------------------------------------------------------
+const ACCOUNT_BLOCK_MS = 10 * 60_000;
+const accountBlocked = new Map<string, number>();
+
+function blockKey(id: string, key: ResolvedKey): string {
+  return `${id}:${key.source}:${key.value.slice(-8)}`;
+}
+export function isAccountError(err: unknown): boolean {
+  return err instanceof ProviderError && (err.status === 401 || err.status === 402 || err.status === 403);
+}
+export function isAccountBlocked(id: string, key: ResolvedKey, now = Date.now()): boolean {
+  const until = accountBlocked.get(blockKey(id, key));
+  if (until === undefined) return false;
+  if (until <= now) {
+    accountBlocked.delete(blockKey(id, key));
+    return false;
+  }
+  return true;
+}
+export function blockAccount(id: string, key: ResolvedKey, now = Date.now()): void {
+  accountBlocked.set(blockKey(id, key), now + ACCOUNT_BLOCK_MS);
+}
+/** Tests only. */
+export function clearAccountBlocks(): void {
+  accountBlocked.clear();
+}
+
 async function withTimeout<T>(ms: number, parent: AbortSignal | undefined, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
   const ctrl = new AbortController();
   const onAbort = () => ctrl.abort(parent?.reason);
@@ -212,7 +243,10 @@ export async function synthesizeWithFallback(
   input: { text: string; lang: CallLang; start: TtsProviderId; clinicId?: string; callId?: string; signal?: AbortSignal },
   deps: RegistryDeps = {},
 ): Promise<TtsRunResult> {
-  const chain = await availableChain(chainFrom(TTS_FALLBACK_ORDER, input.start), input.clinicId, deps);
+  const all = await availableChain(chainFrom(TTS_FALLBACK_ORDER, input.start), input.clinicId, deps);
+  const usable = all.filter((p) => !isAccountBlocked(p.id, p.key));
+  // If every provider is blocked, try them all anyway (the block may be out of date).
+  const chain = usable.length > 0 ? usable : all;
   if (chain.length === 0) throw new AllProvidersFailedError("tts", ["no provider key configured"]);
   const reasons: string[] = [];
   const firstByteMs = deps.timeouts?.ttsFirstByte ?? PROVIDER_TIMEOUTS_MS.ttsFirstByte;
@@ -278,6 +312,7 @@ export async function synthesizeWithFallback(
       ctrl.abort(err);
       if (input.signal?.aborted) throw err;
       const reason = errorReason(err);
+      if (isAccountError(err)) blockAccount(id, key);
       reasons.push(`${id}: ${reason}`);
       const next = chain[i + 1];
       if (next) await logFallback(deps, input.callId, "tts", id, next.id, reason);

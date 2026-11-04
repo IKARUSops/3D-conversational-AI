@@ -33,7 +33,7 @@ const baseSchema = z.object({
 
   // Speech
   ELEVENLABS_API_KEY: optionalString,
-  ELEVENLABS_VOICE_ID: z.preprocess(emptyToUndefined, z.string().default("8U6QQz51HQvOsmbnTJ3D")),
+  ELEVENLABS_VOICE_ID: z.preprocess(emptyToUndefined, z.string().default("cgSgspJ2msm6clMCkdW9")),
   ELEVENLABS_TTS_MODEL: z.preprocess(emptyToUndefined, z.string().default("eleven_v4")),
   AZURE_SPEECH_KEY: optionalString,
   AZURE_SPEECH_REGION: z.preprocess(emptyToUndefined, z.string().default("southeastasia")),
@@ -43,7 +43,7 @@ const baseSchema = z.object({
   ELEVENLABS_TTS_LANGUAGE_CODE: optionalString,
   OPENAI_STT_MODEL: z.preprocess(emptyToUndefined, z.string().default("gpt-transcribe")),
   OPENAI_TTS_MODEL: z.preprocess(emptyToUndefined, z.string().default("gpt-4o-mini-tts")),
-  OPENAI_TTS_VOICE: z.preprocess(emptyToUndefined, z.string().default("coral")),
+  OPENAI_TTS_VOICE: z.preprocess(emptyToUndefined, z.string().default("nova")),
 
   // Security
   CALL_TOKEN_SECRET: optionalString,

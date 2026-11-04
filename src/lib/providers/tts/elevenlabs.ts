@@ -1,11 +1,15 @@
 /**
  * ElevenLabs TTS (owner decision O-04): model `ELEVENLABS_TTS_MODEL` (default eleven_v4),
- * voice `ELEVENLABS_VOICE_ID` (default 8U6QQz51HQvOsmbnTJ3D), mp3_44100_128, streaming endpoint.
+ * voice `ELEVENLABS_VOICE_ID` (default cgSgspJ2msm6clMCkdW9 "Jessica", a built-in voice that works on the
+ * free plan; library voices like 8U6QQz51HQvOsmbnTJ3D need a paid plan, TC-02), mp3_44100_128.
  * POST https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream?output_format=...
  * `language_code` is sent only when ELEVENLABS_TTS_LANGUAGE_CODE is set (verify v4 support).
  */
 import type { TtsProvider } from "../types";
 import { ensureOk, providerSetting, ProviderError, type FetchLike } from "../common";
+
+/** Built-in "Jessica": young, bright female voice; built-in voices work with a free API key. */
+export const DEFAULT_ELEVENLABS_VOICE_ID = "cgSgspJ2msm6clMCkdW9";
 
 export interface ElevenLabsTtsConfig {
   apiKey: string;
@@ -19,7 +23,7 @@ export function createElevenLabsTts(cfg: ElevenLabsTtsConfig): TtsProvider {
   return {
     id: "elevenlabs",
     async stream(text, opts) {
-      const voice = cfg.voiceId ?? providerSetting("ELEVENLABS_VOICE_ID", "8U6QQz51HQvOsmbnTJ3D");
+      const voice = cfg.voiceId ?? providerSetting("ELEVENLABS_VOICE_ID", DEFAULT_ELEVENLABS_VOICE_ID);
       const model = cfg.modelId ?? providerSetting("ELEVENLABS_TTS_MODEL", "eleven_v4");
       const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voice)}/stream?output_format=mp3_44100_128`;
       const languageCode = process.env.ELEVENLABS_TTS_LANGUAGE_CODE?.trim();

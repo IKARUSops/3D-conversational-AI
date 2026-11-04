@@ -143,3 +143,15 @@ describe("T2.1 sentence split", () => {
     expect(splitSentences("জি। আচ্ছা ঠিক আছে।")).toEqual([N("জি। আচ্ছা ঠিক আছে।")]);
   });
 });
+
+describe("dedupeRepeatedName (TC-01)", async () => {
+  const { dedupeRepeatedName } = await import("@/lib/text/normalize");
+  it("keeps one copy of a name said twice", () => {
+    expect(dedupeRepeatedName(N("ওমর ওমর"))).toBe(N("ওমর"));
+    expect(dedupeRepeatedName("Sharif Uddin  sharif uddin")).toBe("Sharif Uddin");
+  });
+  it("leaves real names alone", () => {
+    expect(dedupeRepeatedName(N("শরীফ উদ্দিন"))).toBe(N("শরীফ উদ্দিন"));
+    expect(dedupeRepeatedName(N("মো. ওমর ফারুক"))).toBe(N("মো. ওমর ফারুক"));
+  });
+});

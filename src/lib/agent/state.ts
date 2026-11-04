@@ -11,7 +11,7 @@ import {
   type SavePatientDetailsInput,
   type SavePatientDetailsOutput,
 } from "@/contracts";
-import { collapseSpaces, nfc } from "@/lib/text/normalize";
+import { collapseSpaces, dedupeRepeatedName, nfc } from "@/lib/text/normalize";
 import { spokenDigitsBn, toE164, validateBdMobile } from "@/lib/text/phone";
 import type { ClinicContext } from "@/lib/services";
 
@@ -40,8 +40,8 @@ export function applyPatientDetails(
   const next: AgentState = structuredClone(state);
   const problems: SavePatientDetailsOutput["problems"] = [];
 
-  const nameBn = input.nameBn !== undefined ? collapseSpaces(nfc(input.nameBn)) : undefined;
-  const nameEn = input.nameEn !== undefined ? collapseSpaces(nfc(input.nameEn)) : undefined;
+  const nameBn = input.nameBn !== undefined ? dedupeRepeatedName(nfc(input.nameBn)) : undefined;
+  const nameEn = input.nameEn !== undefined ? dedupeRepeatedName(nfc(input.nameEn)) : undefined;
   if (nameBn !== undefined || nameEn !== undefined) {
     const ok = [nameBn, nameEn].filter((x) => x !== undefined && x !== "").every((x) => isValidName(x!));
     if (!ok || (!nameBn && !nameEn)) problems.push("name_invalid");

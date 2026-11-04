@@ -33,6 +33,19 @@ export function collapseSpaces(s: string): string {
   return (s ?? "").replace(/\s+/g, " ").trim();
 }
 
+/**
+ * A name said twice ("ওমর ওমর", "Sharif Uddin Sharif Uddin") is a speech repeat, not the name
+ * (TC-01). Keeps one copy when the words are exactly two equal halves.
+ */
+export function dedupeRepeatedName(s: string): string {
+  const words = collapseSpaces(s).split(" ").filter(Boolean);
+  if (words.length < 2 || words.length % 2 !== 0) return words.join(" ");
+  const half = words.length / 2;
+  const a = words.slice(0, half).join(" ");
+  const b = words.slice(half).join(" ");
+  return a.toLocaleLowerCase() === b.toLocaleLowerCase() ? a : words.join(" ");
+}
+
 /** NFC + ASCII digits + lower case + single spaces: the form all parsers work on. */
 export function normalizeForMatch(s: string): string {
   return collapseSpaces(bnDigitsToAscii(nfc(s)).toLowerCase());

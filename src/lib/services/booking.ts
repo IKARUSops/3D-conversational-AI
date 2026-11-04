@@ -152,6 +152,25 @@ export async function bookAppointment(
     };
   } catch (err) {
     if (isUniqueViolation(err)) {
+      // Same call asked to book the same slot again (the LLM repeated the tool call):
+      // return the earlier success instead of "slot taken" (TC-01).
+      const own = await getDb().appointment.findFirst({
+        where: {
+          clinicId: clinic.id,
+          doctorId: doctor.id,
+          slotStart: start,
+          status: { in: [...ACTIVE_APPOINTMENT_STATUSES] },
+          createdByCallId: ctx.callId,
+        },
+        select: { id: true },
+      });
+      if (own) {
+        return {
+          ok: true,
+          appointmentId: own.id,
+          spokenSummaryBn: summaryBn("অ্যাপয়েন্টমেন্ট বুক হয়েছে", start, doctor.nameBn, service?.nameBn),
+        };
+      }
       return fail("slot_taken", await alternativesFor(clinic, start, ctx.now, input.serviceCode));
     }
     throw err;

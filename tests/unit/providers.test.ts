@@ -4,6 +4,7 @@ import type { FetchLike } from "@/lib/providers/common";
 import {
   AllProvidersFailedError,
   chainFrom,
+  clearAccountBlocks,
   providerAvailability,
   synthesizeWithFallback,
   transcribeClipWithFallback,
@@ -34,6 +35,7 @@ async function readAll(stream: ReadableStream<Uint8Array>): Promise<number[]> {
 }
 
 afterEach(() => {
+  clearAccountBlocks();
   vi.unstubAllEnvs();
   resetEnvCache();
 });
@@ -89,7 +91,7 @@ describe("T2.3 TTS adapters (mocked fetch)", () => {
     await readAll(await tts.stream("হ্যালো", { lang: "bn" }));
     const [url, init] = fetchImpl.mock.calls[0]!;
     expect(url).toBe(
-      "https://api.elevenlabs.io/v1/text-to-speech/8U6QQz51HQvOsmbnTJ3D/stream?output_format=mp3_44100_128",
+      "https://api.elevenlabs.io/v1/text-to-speech/cgSgspJ2msm6clMCkdW9/stream?output_format=mp3_44100_128",
     );
     expect(JSON.parse(String(init!.body))).toMatchObject({ text: "হ্যালো", model_id: "eleven_v4" });
   });
@@ -119,6 +121,31 @@ describe("T2.3 FR-C14 fallback chain", () => {
     expect(r.fallbackFrom).toBe("elevenlabs");
     expect(await readAll(r.stream)).toEqual([9, 9]);
     expect(log).toHaveBeenCalledWith("c1", "provider_fallback", expect.objectContaining({ kind: "tts", from: "elevenlabs", to: "openai" }));
+  });
+
+  it("TC-02: after an account error (402) the provider is skipped on the next sentences", async () => {
+    const fetchImpl = vi.fn<FetchLike>(async (url) =>
+      String(url).includes("elevenlabs")
+        ? new Response('{"detail":{"code":"paid_plan_required"}}', { status: 402 })
+        : audioResponse([5]),
+    );
+    const deps = { resolveKey: allKeys, fetchImpl };
+    const first = await synthesizeWithFallback({ text: "এক", lang: "bn", start: "elevenlabs" }, deps);
+    expect(first.provider).toBe("openai");
+    const second = await synthesizeWithFallback({ text: "দুই", lang: "bn", start: "elevenlabs" }, deps);
+    expect(second.provider).toBe("openai");
+    const elevenCalls = fetchImpl.mock.calls.filter(([u]) => String(u).includes("elevenlabs"));
+    expect(elevenCalls).toHaveLength(1);
+  });
+
+  it("a server error (500) does not block the provider", async () => {
+    const fetchImpl = vi.fn<FetchLike>(async (url) =>
+      String(url).includes("elevenlabs") ? new Response("busy", { status: 500 }) : audioResponse([5]),
+    );
+    const deps = { resolveKey: allKeys, fetchImpl };
+    await synthesizeWithFallback({ text: "এক", lang: "bn", start: "elevenlabs" }, deps);
+    await synthesizeWithFallback({ text: "দুই", lang: "bn", start: "elevenlabs" }, deps);
+    expect(fetchImpl.mock.calls.filter(([u]) => String(u).includes("elevenlabs"))).toHaveLength(2);
   });
 
   it("TTS moves on when the first byte does not arrive in time", async () => {

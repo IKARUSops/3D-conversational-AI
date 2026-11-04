@@ -51,6 +51,11 @@ const confirmedState = (): AgentState => ({
 });
 
 describe("T2.4 FR-C15 save_patient_details logic", () => {
+  it("TC-01: a repeated name is saved once", () => {
+    const r = applyPatientDetails(createInitialAgentState(), { nameBn: "ওমর ওমর" });
+    expect(r.state.patient?.nameBn).toBe("ওমর".normalize("NFC"));
+  });
+
   it("valid phone returns the Bangla read-back and is not yet confirmed", () => {
     const r = applyPatientDetails(createInitialAgentState(), { phoneRaw: "০১৭১২৩৪৫৬৭৮" });
     expect(r.output.phoneValid).toBe(true);

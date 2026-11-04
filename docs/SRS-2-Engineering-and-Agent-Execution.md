@@ -214,7 +214,7 @@ bytevoice-bangla/
 
 | Name | Where used | Notes |
 |---|---|---|
-| `DATABASE_URL` | Prisma (pooled, port 6543, `?pgbouncer=true&connection_limit=1`) | Supabase |
+| `DATABASE_URL` | Prisma via pg adapter (pooled, port 6543, `?pgbouncer=true`; pool size `max: 3` in src/lib/db.ts) | Supabase |
 | `DIRECT_URL` | Prisma migrations (port 5432) | Supabase |
 | `NEXT_PUBLIC_SUPABASE_URL` | browser + server | public |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | browser auth | public, RLS protects data |

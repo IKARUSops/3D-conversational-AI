@@ -114,6 +114,20 @@ describe("book_appointment (T1.4, FR-C6, FR-C18, FR-C19)", () => {
     expect(r.alternatives?.map((a) => a.start)).not.toContain(SUN_18);
   });
 
+  it("TC-01: the same call booking the same slot twice gets the earlier success, one row", async () => {
+    const slot = "2026-11-10T19:00:00+06:00";
+    const c = await ctx(confirmedState("01911111111", "ওমর"));
+    const first = await book(c, slot);
+    expect(first.ok).toBe(true);
+    const again = await book(c, slot);
+    expect(again.ok).toBe(true);
+    if (!first.ok || !again.ok) return;
+    expect(again.appointmentId).toBe(first.appointmentId);
+    expect(again.spokenSummaryBn).toContain("বুক হয়েছে");
+    const rows = await t.prisma.appointment.count({ where: { slotStart: new Date(slot), doctorId: nusrat } });
+    expect(rows).toBe(1);
+  });
+
   it("raw DB insert of a second active appointment fails (partial unique index)", async () => {
     const p = await t.prisma.patient.findFirstOrThrow();
     // Inside a transaction: PGlite's socket drops the connection on a failed single statement.

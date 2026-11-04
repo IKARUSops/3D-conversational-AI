@@ -9,6 +9,7 @@ import {
   DEFAULT_CLINIC_SLUG,
   HEADERS,
   LIMITS,
+  TtsProviderIdSchema,
   type CallLang,
   type EndReason,
   type InputMode,
@@ -465,8 +466,13 @@ export class CallSession {
       signal,
     });
     if (!res.ok) throw new Error(`tts ${res.status}`);
-    const used = res.headers.get(HEADERS.PROVIDER);
-    if (used && used !== this.tts) this.dispatch({ type: "NOTICE", notice: "tts_fallback" });
+    const used = TtsProviderIdSchema.safeParse(res.headers.get(HEADERS.PROVIDER));
+    if (used.success && used.data !== this.tts) {
+      // Stick to the voice that worked for the rest of the call: no repeated failed tries
+      // (TC-02, extra delay per sentence) and no voice change in the middle of the call.
+      this.tts = used.data;
+      this.dispatch({ type: "NOTICE", notice: "tts_fallback" });
+    }
     return res.arrayBuffer();
   }
 
