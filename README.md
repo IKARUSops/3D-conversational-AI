@@ -182,7 +182,7 @@ I can explain every part of the code, including what the agents wrote.
 
 - **Prototype.** The call-end screen shows a link to the portal so reviewers can jump to the record. A real clinic release would hide it from callers.
 - **Low credits.** See the credits note in section 1. When fallbacks are active, the voice changes and replies can be slower.
-- **Short deaf moments.** Chrome's built-in speech recognition sometimes misses a reply for a few seconds; Nadia then asks "হ্যালো?" and the call recovers when the caller speaks again. Several fixes are in (TC-04, TC-06, TC-07, TC-08); a streaming speech model of our own would remove this fully (future work).
+- **Short deaf moments.** Chrome's built-in speech recognition sometimes misses a reply for a few seconds; Nadia then asks "হ্যালো?" and the call recovers when the caller speaks again. If the microphone hears the caller for 3 seconds but Chrome returns no words, the app restarts the recognizer, and the second time it switches to server speech recognition for the rest of the call (a notice shows in the call panel). Several fixes are in (TC-04, TC-06, TC-07, TC-08); a streaming speech model of our own would remove this fully (future work).
 - **Browser STT is Chrome only.** Other browsers use server STT on short clips, which is slower.
 - **Headphones recommended.** On speakers, Nadia may hear her own voice; the echo filter reduces this but cannot remove it.
 - **End of turn.** A long pause inside a phone number can end the caller's turn early; Nadia asks for the rest and joins the parts.

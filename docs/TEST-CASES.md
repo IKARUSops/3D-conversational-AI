@@ -1,6 +1,6 @@
 # Live test cases
 
-Twelve real test calls made on 4 and 5 November 2026, before the demo data was recorded. Each one found a problem; each problem was traced in the code, fixed, and covered by an automated test. Reviewers can open these calls in the portal (they are the earliest calls in the list) instead of reading transcripts here.
+Thirteen real test calls made on 4 and 5 November 2026, before the demo data was recorded. Each one found a problem; each problem was traced in the code, fixed, and covered by an automated test. Reviewers can open these calls in the portal (they are the earliest calls in the list) instead of reading transcripts here.
 
 All tests run with `pnpm test` (294 passing). Decision ids (T-xx) point to [`DECISIONS.md`](DECISIONS.md).
 
@@ -18,6 +18,7 @@ All tests run with `pnpm test` (294 passing). Decision ids (T-xx) point to [`DEC
 | TC-10 | Asked for the doctor's home address and personal number, Nadia refused both and gave the clinic address (correct). Then she said goodbye but the call stayed open, and "হ্যালো?" prompts followed. | The LLM said goodbye without calling the end-call tool. | A reply with goodbye words and no question now ends the call in code. (T-16) | Fixed, tested |
 | TC-11 | Four prank questions (cricket, marriage, a song, the longest river) got polite, short redirects, but the call did not end after three and was saved as Incomplete, not Spam. | The LLM never called the off-topic counter tool. | The prompt requires the counter every time. After the call, the extraction also counts off-topic turns; 3 or more with no clinic information gives Spam. (T-17) | Fixed, tested |
 | TC-12 | Emergency (bleeding after an extraction, swelling): Nadia correctly said to go to a hospital emergency department or call 999, but no urgent callback was made and the status was Incomplete. She also missed the caller twice for a few seconds. | The LLM skipped the callback tool. Chrome's recognizer missed replies briefly. | The prompt requires the urgent callback; after the call, a missing callback is created from the extraction, so the status is Follow-up needed. Reviewers are told to keep talking if Nadia briefly does not hear them. (T-18) | Fixed, tested; deaf moments documented |
+| TC-13 | Emergency call again: the safety net created the urgent callback (status Follow-up needed). But after the phone read-back Nadia heard nothing, while the mascot showed the caller's voice. | Chrome's recognizer was running but returned no text: stuck, not stopped. | The app watches the mic: 3 seconds of caller voice with no words restarts the recognizer; the second time it switches to server speech recognition. Server STT now skips a provider with no credits. (T-19) | Fixed; needs a live re-check |
 
 ## Notes
 

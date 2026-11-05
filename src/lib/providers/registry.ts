@@ -174,7 +174,10 @@ export async function transcribeClipWithFallback(
   deps: RegistryDeps = {},
 ): Promise<SttRunResult> {
   const t0 = Date.now();
-  const chain = await availableChain(chainFrom(SERVER_STT_FALLBACK_ORDER, input.start), input.clinicId, deps);
+  const allStt = await availableChain(chainFrom(SERVER_STT_FALLBACK_ORDER, input.start), input.clinicId, deps);
+  // Skip a provider that rejected the account recently (no credits), like TTS (TC-13).
+  const usableStt = allStt.filter((p) => !isAccountBlocked(`stt-${p.id}`, p.key));
+  const chain = usableStt.length > 0 ? usableStt : allStt;
   if (chain.length === 0) throw new AllProvidersFailedError("stt", ["no provider key configured"]);
   const reasons: string[] = [];
   for (let i = 0; i < chain.length; i++) {
@@ -183,7 +186,10 @@ export async function transcribeClipWithFallback(
       const stt = buildStt(id, key, deps.fetchImpl);
       const r = await withTimeout(deps.timeouts?.stt ?? PROVIDER_TIMEOUTS_MS.stt, input.signal, (signal) =>
         stt.transcribe(input.wav, { lang: input.lang, signal }),
-      );
+      ).catch((err: unknown) => {
+        if (isAccountError(err)) blockAccount(`stt-${id}`, key);
+        throw err;
+      });
       return {
         ...r,
         provider: id,

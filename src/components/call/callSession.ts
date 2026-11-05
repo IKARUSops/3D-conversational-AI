@@ -39,6 +39,11 @@ export interface SessionOptions {
 }
 
 const SILENCE_MS = LIMITS.SILENCE_MS;
+const STT_WATCH_MS = 200;
+/** Caller mic level (0..1, see getCallerLevel) that counts as speaking. */
+const VOICE_LEVEL = 0.15;
+/** Total speaking time with no recognized text before the recognizer is treated as stuck. */
+const VOICE_STALL_MS = 3000;
 const TIME_WARNING_S = LIMITS.TIME_WARNING_SECONDS;
 
 function micErrorKind(err: unknown): CallErrorKind {
@@ -76,6 +81,10 @@ export class CallSession {
   private summary: string | undefined;
   private silenceTimer: ReturnType<typeof setTimeout> | undefined;
   private tickTimer: ReturnType<typeof setInterval> | undefined;
+  /** Stuck-recognizer watch (TC-13): voice on the mic but no text from Chrome. */
+  private sttWatchTimer: ReturnType<typeof setInterval> | undefined;
+  private voiceMsWithoutText = 0;
+  private browserSttResets = 0;
   private timeWarned = false;
   private ending = false;
   private lastInterimAt = 0;
@@ -232,6 +241,7 @@ export class CallSession {
     this.queue.resetTurn();
     this.queue.enqueue(-1, "greeting", data.greeting.text, data.greeting.ttsText);
     this.tickTimer = setInterval(() => this.tick(), 500);
+    this.sttWatchTimer = setInterval(() => this.watchBrowserStt(), STT_WATCH_MS);
     window.addEventListener("pagehide", this.onPageHide);
   }
 
@@ -325,6 +335,7 @@ export class CallSession {
 
   private onCallerText(text: string, final: boolean, confidence?: number): void {
     if (this.ending || !this.queue) return;
+    this.voiceMsWithoutText = 0;
     // Only punctuation ("।") is noise from speech recognition, not a turn (TC-09).
     if (!/[\p{L}\p{N}]/u.test(text)) return;
     this.lastInterimAt = Date.now();
@@ -518,6 +529,31 @@ export class CallSession {
     }, this.textOnly ? SILENCE_MS * 3 : SILENCE_MS);
   }
 
+  /**
+   * TC-13: Chrome's recognizer can look alive but return no text while the caller talks (the
+   * mascot shows the voice, no words appear). If the mic hears voice for VOICE_STALL_MS in total
+   * while the agent is quiet and no text arrives: first restart the recognizer, the second time
+   * switch to server speech recognition for the rest of the call.
+   */
+  private watchBrowserStt(): void {
+    if (this.ending || this.stt !== "browser" || !this.browserStt || !this.micAnalyser) return;
+    if (this.queue?.isActive() || this.turnStreaming) {
+      this.voiceMsWithoutText = 0;
+      return;
+    }
+    if (this.getCallerLevel() >= VOICE_LEVEL) this.voiceMsWithoutText += STT_WATCH_MS;
+    if (this.voiceMsWithoutText < VOICE_STALL_MS) return;
+    this.voiceMsWithoutText = 0;
+    this.browserSttResets++;
+    if (this.browserSttResets >= 2) {
+      void this.switchToServerStt();
+      return;
+    }
+    this.browserStt.stop();
+    this.browserStt = null;
+    void this.startStt();
+  }
+
   private tick(): void {
     if (this.ending) return;
     const now = Date.now();
@@ -549,6 +585,7 @@ export class CallSession {
     this.ending = true;
     this.dispatch({ type: "ENDING", reason });
     clearInterval(this.tickTimer);
+    clearInterval(this.sttWatchTimer);
     this.clearSilence();
     window.removeEventListener("pagehide", this.onPageHide);
     this.browserStt?.stop();
