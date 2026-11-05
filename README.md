@@ -157,7 +157,7 @@ The full log of decisions, including each fix from real test calls, is in [`docs
 
 ## 6. Testing
 
-- **289 automated tests** (Vitest), including full-call flows on an in-memory Postgres (PGlite): book, reschedule, cancel, callbacks, double-booking, dates, Bangla numbers, phone checks, echo filter, fallbacks and status rules. Run `pnpm verify` (typecheck, lint, tests, build).
+- **291 automated tests** (Vitest), including full-call flows on an in-memory Postgres (PGlite): book, reschedule, cancel, callbacks, double-booking, dates, Bangla numbers, phone checks, echo filter, fallbacks and status rules. Run `pnpm verify` (typecheck, lint, tests, build).
 - **Live test calls.** Each problem found in real calls was fixed and turned into a test. See [`docs/TEST-CASES.md`](docs/TEST-CASES.md): for example, a repeated booking tool call that told the caller "slot taken" (now idempotent per call), a short "ঠিক আছে" dropped by the echo filter, Chrome giving no final speech result, and stacked questions (now one question per reply, enforced in code).
 
 ---

@@ -21,6 +21,13 @@ import type { CallRow, TurnStore } from "./store";
 import { createAgentTools, type AgentServices, type ToolTracker } from "./tools";
 
 export const HISTORY_WINDOW = 20;
+
+/** A closing line: goodbye words and no question asked. */
+export function saidGoodbye(text: string): boolean {
+  const t = text.normalize("NFC");
+  if (/[?？]/.test(t)) return false;
+  return /আল্লাহ\s*হাফেজ|খোদা\s*হাফেজ|allah\s*hafe?z|\bgoodbye\b|\bbye\b/iu.test(t);
+}
 export const MAX_STEPS = 6;
 export const MAX_OUTPUT_TOKENS = 200;
 
@@ -390,6 +397,13 @@ export async function runTurn(args: RunTurnArgs, deps: TurnDeps, emit: (e: TurnE
         sendSentence(lines.sorry);
         tracker.pending.push(svc.logEvent(callId, "llm_error", { reason: "no text in reply" }));
       }
+    }
+
+    // 5b. Said goodbye but forgot end_call (TC-10): end the call in code, so the caller does
+    // not get silence prompts after "আল্লাহ হাফেজ".
+    if (!holder.state.ended && live() && sentences.length > 0 && saidGoodbye(sentences.join(" "))) {
+      holder.state = { ...holder.state, ended: { reason: "goodbye", summaryBn: sentences.join(" ").slice(0, 300) } };
+      tracker.pending.push(svc.logEvent(callId, "tool_result", { name: "end_call", ok: true, output: { auto: true } }));
     }
 
     // 6. Off-topic streak counts turns in a row (FR-C12).

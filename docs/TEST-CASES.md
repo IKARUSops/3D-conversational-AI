@@ -1,8 +1,8 @@
 # Live test cases
 
-Nine real test calls made on 4 and 5 November 2026, before the demo data was recorded. Each one found a problem; each problem was traced in the code, fixed, and covered by an automated test. Reviewers can open these calls in the portal (they are the earliest calls in the list) instead of reading transcripts here.
+Ten real test calls made on 4 and 5 November 2026, before the demo data was recorded. Each one found a problem; each problem was traced in the code, fixed, and covered by an automated test. Reviewers can open these calls in the portal (they are the earliest calls in the list) instead of reading transcripts here.
 
-All tests run with `pnpm test` (289 passing). Decision ids (T-xx) point to [`DECISIONS.md`](DECISIONS.md).
+All tests run with `pnpm test` (291 passing). Decision ids (T-xx) point to [`DECISIONS.md`](DECISIONS.md).
 
 | Case | What happened | Cause | Fix | Status |
 |---|---|---|---|---|
@@ -15,6 +15,7 @@ All tests run with `pnpm test` (289 passing). Decision ids (T-xx) point to [`DEC
 | TC-07 | After the name read-back, Nadia heard nothing; only "হ্যালো?" prompts played. | The TC-04 fix restarted Chrome's speech recognition after each stalled phrase; a restart that failed was ignored, so the microphone stayed deaf. | The recognizer is never stopped during a call; restarts retry until they work, and a watchdog restarts it if it ever stops. (T-13) | Fixed, tested |
 | TC-08 | The caller's "জি ঠিক আছে" appeared on screen, then vanished. Later the caller picked a time and Nadia booked at once, without reading the details back. | The echo exception was too narrow. Picking a slot was taken as the final yes. | Short yes/no answers are accepted whenever Nadia's latest sentence is a question. Booking is refused in code unless her previous sentence was a read-back with the caller's name or last phone digits. (T-14) | Fixed, tested |
 | TC-09 | "নেক্সট মানডে বিকেল" was taken as tomorrow (Friday). Later Nadia read back 3:00, a time she never offered, the caller said yes, and 4:00 was booked. | The date parser did not know English weekday names in Bangla script. The booking did not check that the read-back matched the slot. | English weekday words in Bangla script are parsed. Booking is refused unless the read-back says the exact time being booked. Phone numbers said in two parts are joined in code; a lone "।" is ignored. (T-15) | Fixed, tested |
+| TC-10 | Asked for the doctor's home address and personal number, Nadia refused both and gave the clinic address (correct). Then she said goodbye but the call stayed open, and "হ্যালো?" prompts followed. | The LLM said goodbye without calling the end-call tool. | A reply with goodbye words and no question now ends the call in code. (T-16) | Fixed, tested |
 
 ## Notes
 

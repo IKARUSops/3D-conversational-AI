@@ -291,4 +291,21 @@ describe("T2.4 turn loop (mock LLM)", () => {
     await turn({ turnSeq: 1, text: "প্রথম টাইমটা দেন" }, { llms: [llm("google:mock", model)], services: svc }, mem0);
     expect(svc.bookAppointment).not.toHaveBeenCalled();
   });
+
+  it("TC-10: a goodbye without end_call still ends the call", async () => {
+    const { events, mem } = await turn(
+      { turnSeq: 1, text: "ঠিক আছে ধন্যবাদ" },
+      { llms: [llm("google:mock", textModel(["ভালো থাকবেন, আল্লাহ হাফেজ। কল করার জন্য ধন্যবাদ।"]))] },
+    );
+    expect(events.find((e) => e.type === "end_call")).toBeTruthy();
+    expect((mem.call.agentState as AgentState).ended?.reason).toBe("goodbye");
+  });
+
+  it("a goodbye inside a question does not end the call", async () => {
+    const { events } = await turn(
+      { turnSeq: 1, text: "আচ্ছা" },
+      { llms: [llm("google:mock", textModel(["আর কিছু জানতে চান?"]))] },
+    );
+    expect(events.find((e) => e.type === "end_call")).toBeUndefined();
+  });
 });
