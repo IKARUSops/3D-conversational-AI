@@ -1,0 +1,21 @@
+# Live test cases
+
+Seven real test calls made on 4 and 5 November 2026, before the demo data was recorded. Each one found a problem; each problem was traced in the code, fixed, and covered by an automated test. Reviewers can open these calls in the portal (they are the earliest calls in the list) instead of reading transcripts here.
+
+All tests run with `pnpm test` (281 passing). Decision ids (T-xx) point to [`DECISIONS.md`](DECISIONS.md).
+
+| Case | What happened | Cause | Fix | Status |
+|---|---|---|---|---|
+| TC-01 | Nadia offered 10:00, the caller said yes, then she said "the 10:00 slot is already booked". The booking had in fact been saved. | The LLM called `book_appointment` twice. The second call hit the database's double-booking index and returned "slot taken". | Booking is idempotent per call: if the slot was booked by the same call, the earlier success is returned (uses `appointments.created_by_call_id`). (T-01) | Fixed, tested |
+| TC-02 | Every sentence was slow, and the call stopped before booking. | The ElevenLabs free plan rejects library voices through the API (HTTP 402), so every sentence failed first, then fell back. | A built-in voice is the default. A provider that rejects the account is skipped for 10 minutes, and the browser keeps the voice that worked. (T-02, T-03) | Fixed, tested |
+| TC-03 | The booking looped, then the caller heard "sorry, say again" after it worked. | Nadia asked two questions at once, so the name and phone were never confirmed. The booking was blocked twice, and the step limit left no words for the result. | A yes to the full read-back confirms the name and phone. If a tool succeeded but the LLM wrote nothing, its result is spoken. More steps per reply. (T-06) | Fixed, tested |
+| TC-04 | After "আপনার মোবাইল নম্বরটা বলবেন?" the caller spoke, but nothing happened for 56 seconds, not even "হ্যালো?". | Chrome sent only interim speech results and never a final one. Interim text also switched off the silence timer. | Interim text that stops changing for 1.5 seconds, or is pending when the session restarts, is sent as the turn. The silence timer always comes back. (T-08) | Fixed, tested |
+| TC-05 | The booking worked, but Nadia said "শনিবার, পাঁচ নভেম্বর" for Saturday 7 November, read all 11 digits twice, and stacked questions again. | The LLM worked out a date itself, and prompt rules alone did not stop stacked questions. | Today, tomorrow and the next open day are computed in code. Text after the first question mark is dropped (one question per reply, in code). Final read-back uses the last 4 digits. The portal shows rule results like "closed friday" as normal. (T-09) | Fixed, tested |
+| TC-06 | First call on Vercel: the caller said "ঠিক আছে" several times and Nadia kept asking "শুনতে পাচ্ছেন?". | Her question ended with "ঠিক আছে?", so the echo filter treated the same answer as her own voice and dropped it. | A short yes/no answer is accepted while Nadia finishes a question. (T-11) | Fixed, tested |
+| TC-07 | After the name read-back, Nadia heard nothing; only "হ্যালো?" prompts played. | The TC-04 fix restarted Chrome's speech recognition after each stalled phrase; a restart that failed was ignored, so the microphone stayed deaf. | The recognizer is never stopped during a call; restarts retry until they work, and a watchdog restarts it if it ever stops. (T-13) | Fixed, tested |
+
+## Notes
+
+- **Prototype behaviour (kept on purpose).** The call-end screen links to the portal, so reviewers can jump from a call to its record. A real clinic release would hide this link from callers. (T-05)
+- **TC-01 in the portal** shows the status "Enquiry" although the 10:00 appointment exists. That record was made before the fix and is kept as evidence.
+- **Testing tip.** Say the phone number one digit at a time ("শূন্য এক আট ছয়..."), not "double six" or "ডাবল ছয়", and pause after the last digit.

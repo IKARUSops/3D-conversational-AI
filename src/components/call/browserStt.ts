@@ -6,6 +6,8 @@
  * - Chrome sometimes never marks a result final (long digit strings, TC-04) or ends the session
  *   with only interim text. Interim text with no new result for STALL_MS, or still pending when
  *   the session ends, is promoted to final, so the caller's words are never lost.
+ * - The recognizer is never aborted while the call runs; restarts retry until they work and a
+ *   watchdog restarts it if it stopped (TC-07: a failed restart left the mic deaf).
  */
 
 /** Interim text unchanged this long counts as the end of the caller's turn. */
@@ -33,6 +35,7 @@ interface Recognition {
   onresult: ((e: SpeechEvent) => void) | null;
   onerror: ((e: { error: string }) => void) | null;
   onend: (() => void) | null;
+  onstart?: (() => void) | null;
   start(): void;
   stop(): void;
   abort(): void;
@@ -78,12 +81,20 @@ export interface BrowserSttOptions {
 export class BrowserStt {
   private rec: Recognition | null = null;
   private running = false;
+  /** true between the recognizer's `start` and `end` events. */
+  private live = false;
   private finalBuf = "";
   private confs: number[] = [];
   private timer: ReturnType<typeof setTimeout> | undefined;
   private stallTimer: ReturnType<typeof setTimeout> | undefined;
+  private restartTimer: ReturnType<typeof setTimeout> | undefined;
+  private watchdog: ReturnType<typeof setInterval> | undefined;
   private interimBuf = "";
+  /** Result indices below this were promoted already in this session: ignore them (no double send). */
+  private skipBelow = 0;
+  private resultsLength = 0;
   private restarts = 0;
+  private startFailures = 0;
 
   constructor(private opts: BrowserSttOptions) {}
 
@@ -91,55 +102,102 @@ export class BrowserStt {
     const Ctor = this.opts.ctor ?? recognitionCtor();
     if (!Ctor) return false;
     this.running = true;
+    if (!this.createAndStart(Ctor)) {
+      this.running = false;
+      return false;
+    }
+    // Safety net (TC-07): if the recognizer ever stops without restarting, start it again.
+    this.watchdog = setInterval(() => {
+      if (this.running && !this.live && this.restartTimer === undefined) this.scheduleRestart(0);
+    }, 3000);
+    return true;
+  }
+
+  private createAndStart(Ctor: RecognitionCtor): boolean {
     const rec = new Ctor();
     rec.lang = this.opts.lang;
     rec.continuous = true;
     rec.interimResults = true;
     rec.maxAlternatives = 1;
+    rec.onstart = () => {
+      this.live = true;
+      this.startFailures = 0;
+      this.skipBelow = 0;
+      this.resultsLength = 0;
+    };
     rec.onresult = (e) => this.handleResult(e);
     rec.onerror = (e) => this.handleError(e.error);
     rec.onend = () => {
-      if (!this.running) return;
+      this.live = false;
+      if (!this.running || this.rec !== rec) return;
       // Session ended with words still interim: keep them as the caller's turn.
-      this.promoteInterim(false);
+      this.promoteInterim();
       // Chrome ends the session after silence or ~60 s: start again.
-      setTimeout(() => {
-        if (!this.running) return;
-        try {
-          rec.start();
-          this.restarts++;
-        } catch {
-          // already started
-        }
-      }, 120);
+      this.scheduleRestart(120);
     };
     this.rec = rec;
     try {
       rec.start();
+      return true;
     } catch {
       return false;
     }
-    return true;
+  }
+
+  /**
+   * Start the recognizer again. Chrome throws if it is not fully stopped yet, so retry with a
+   * short delay, and after 5 failures replace the recognizer object (TC-07: a failed restart
+   * left the microphone deaf for the rest of the call).
+   */
+  private scheduleRestart(delayMs: number): void {
+    clearTimeout(this.restartTimer);
+    this.restartTimer = setTimeout(() => {
+      this.restartTimer = undefined;
+      if (!this.running || this.live) return;
+      try {
+        this.rec?.start();
+        this.restarts++;
+      } catch {
+        this.startFailures++;
+        if (this.startFailures >= 5) {
+          this.startFailures = 0;
+          const Ctor = this.opts.ctor ?? recognitionCtor();
+          try {
+            this.rec?.abort();
+          } catch {
+            // ignore
+          }
+          if (Ctor && this.createAndStart(Ctor)) return;
+        }
+        this.scheduleRestart(300);
+      }
+    }, delayMs);
   }
 
   stop(): void {
     this.running = false;
+    this.live = false;
     clearTimeout(this.timer);
     clearTimeout(this.stallTimer);
+    clearTimeout(this.restartTimer);
+    this.restartTimer = undefined;
+    clearInterval(this.watchdog);
     this.finalBuf = "";
     this.interimBuf = "";
+    const rec = this.rec;
+    this.rec = null;
     try {
-      this.rec?.abort();
+      rec?.abort();
     } catch {
       // ignore
     }
-    this.rec = null;
   }
 
   private handleResult(e: SpeechEvent): void {
     let interim = "";
     let gotFinal = false;
-    for (let i = e.resultIndex; i < e.results.length; i++) {
+    this.resultsLength = e.results.length;
+    for (let i = Math.max(e.resultIndex, this.skipBelow); i < e.results.length; i++) {
       const r = e.results[i]!;
       const alt = r[0];
       if (!alt) continue;
@@ -152,7 +210,7 @@ export class BrowserStt {
     this.interimBuf = interim.trim();
     clearTimeout(this.stallTimer);
     if (this.interimBuf) {
-      this.stallTimer = setTimeout(() => this.promoteInterim(true), this.opts.stallMs ?? STALL_MS);
+      this.stallTimer = setTimeout(() => this.promoteInterim(), this.opts.stallMs ?? STALL_MS);
     }
     const shown = `${this.finalBuf} ${interim}`.trim();
     if (shown) this.opts.onInterim(shown);
@@ -160,21 +218,15 @@ export class BrowserStt {
   }
 
   /**
-   * Treat pending interim text as final and flush it. With `reset`, the live session is aborted
-   * (it restarts on `end`) so Chrome cannot send the same words again as a late final result.
+   * Treat pending interim text as final and flush it. The recognizer keeps running (no abort,
+   * TC-07); results up to now are skipped, so a late final for the same words is not sent twice.
    */
-  private promoteInterim(reset: boolean): void {
+  private promoteInterim(): void {
     clearTimeout(this.stallTimer);
     if (!this.interimBuf) return;
     this.finalBuf = `${this.finalBuf} ${this.interimBuf}`.trim();
     this.interimBuf = "";
-    if (reset) {
-      try {
-        this.rec?.abort();
-      } catch {
-        // ignore
-      }
-    }
+    this.skipBelow = this.resultsLength;
     this.schedule();
   }
 

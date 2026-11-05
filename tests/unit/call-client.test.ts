@@ -213,13 +213,20 @@ describe("BrowserStt end of turn (TC-04: Chrome never sent a final result)", asy
     onresult: ((e: unknown) => void) | null = null;
     onerror: ((e: { error: string }) => void) | null = null;
     onend: (() => void) | null = null;
+    onstart: (() => void) | null = null;
     starts = 0;
     aborts = 0;
+    failNextStarts = 0;
     constructor() {
       FakeRec.last = this;
     }
     start() {
+      if (this.failNextStarts > 0) {
+        this.failNextStarts--;
+        throw new Error("InvalidStateError");
+      }
       this.starts++;
+      this.onstart?.();
     }
     stop() {}
     abort() {
@@ -247,15 +254,46 @@ describe("BrowserStt end of turn (TC-04: Chrome never sent a final result)", asy
     return { stt, finals, rec: () => FakeRec.last };
   }
 
-  it("promotes interim text that stops changing, and aborts so it is not sent twice", () => {
+  it("promotes interim text that stops changing, keeps listening, and ignores the late final", () => {
     vi.useFakeTimers();
     const { stt, finals, rec } = make();
     const r = rec();
     r.say("০১৮৬৭৬৪৩৮৬৬", false);
     vi.advanceTimersByTime(1500 + 700 + 200);
     expect(finals).toEqual(["০১৮৬৭৬৪৩৮৬৬".normalize("NFC")]);
-    expect(r.aborts).toBe(1);
-    expect(r.starts).toBe(2); // restarted after the abort
+    expect(r.aborts).toBe(0); // TC-07: never abort while the call runs
+    r.say("০১৮৬৭৬৪৩৮৬৬", true); // Chrome's late final for the same words
+    r.say("জি ঠিক আছে", true, 1); // the next answer still works
+    vi.advanceTimersByTime(1000);
+    expect(finals).toEqual(["০১৮৬৭৬৪৩৮৬৬".normalize("NFC"), "জি ঠিক আছে".normalize("NFC")]);
+    stt.stop();
+    vi.useRealTimers();
+  });
+
+  it("TC-07: a failed restart is retried until the recognizer runs again", () => {
+    vi.useFakeTimers();
+    const { stt, finals, rec } = make();
+    const r = rec();
+    r.failNextStarts = 3; // Chrome not ready yet
+    r.onend?.(); // session ended (silence or 60 s)
+    vi.advanceTimersByTime(120 + 300 * 3 + 50);
+    expect(r.starts).toBe(2);
+    r.say("হ্যাঁ ঠিক আছে", true);
+    vi.advanceTimersByTime(800);
+    expect(finals).toEqual(["হ্যাঁ ঠিক আছে".normalize("NFC")]);
+    stt.stop();
+    vi.useRealTimers();
+  });
+
+  it("TC-07: the watchdog restarts a recognizer that stopped silently", () => {
+    vi.useFakeTimers();
+    const { stt, rec } = make();
+    const r = rec();
+    r.onstart = null;
+    // Simulate a dead session without an end event: mark not live through a failed end handler.
+    (stt as unknown as { live: boolean }).live = false;
+    vi.advanceTimersByTime(3100);
+    expect(r.starts).toBe(2);
     stt.stop();
     vi.useRealTimers();
   });
