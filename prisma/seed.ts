@@ -55,7 +55,7 @@ const SETTINGS: ClinicSettings = {
   paymentEn: "Cash, bKash and card.",
   parkingBn: "পার্কিং সীমিত; রিকশা আর সিএনজি গেটে নামিয়ে দিতে পারে।",
   parkingEn: "Limited parking; rickshaw and CNG drop-off at the gate.",
-  defaultStt: "elevenlabs",
+  defaultStt: "openai",
   defaultTts: "elevenlabs",
 };
 

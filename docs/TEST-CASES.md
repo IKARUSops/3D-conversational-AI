@@ -1,6 +1,6 @@
 # Live test cases
 
-Fourteen real test calls made on 4 and 5 November 2026, before the demo data was recorded. Each one found a problem; each problem was traced in the code, fixed, and covered by an automated test. Reviewers can open these calls in the portal (they are the earliest calls in the list) instead of reading transcripts here.
+Fifteen real test calls made on 4 and 5 November 2026, before the demo data was recorded. Each one found a problem; each problem was traced in the code, fixed, and covered by an automated test. Reviewers can open these calls in the portal (they are the earliest calls in the list) instead of reading transcripts here.
 
 All tests run with `pnpm test` (294 passing). Decision ids (T-xx) point to [`DECISIONS.md`](DECISIONS.md).
 
@@ -20,6 +20,7 @@ All tests run with `pnpm test` (294 passing). Decision ids (T-xx) point to [`DEC
 | TC-12 | Emergency (bleeding after an extraction, swelling): Nadia correctly said to go to a hospital emergency department or call 999, but no urgent callback was made and the status was Incomplete. She also missed the caller twice for a few seconds. | The LLM skipped the callback tool. Chrome's recognizer missed replies briefly. | The prompt requires the urgent callback; after the call, a missing callback is created from the extraction, so the status is Follow-up needed. Reviewers are told to keep talking if Nadia briefly does not hear them. (T-18) | Fixed, tested; deaf moments documented |
 | TC-13 | Emergency call again: the safety net created the urgent callback (status Follow-up needed). But after the phone read-back Nadia heard nothing, while the mascot showed the caller's voice. | Chrome's recognizer was running but returned no text: stuck, not stopped. | The app watches the mic: 3 seconds of caller voice with no words restarts the recognizer; the second time it switches to server speech recognition. Server STT now skips a provider with no credits. (T-19) | Fixed; needs a live re-check |
 | TC-14 | English call: Chrome (set to Bangla) wrote the English words in Bangla letters, Nadia answered in Bangla, then stopped hearing the caller after "আপনার মোবাইল নম্বরটি বলবেন?". | Chrome's recognizer, again. Answering in Bangla is intended. | Server speech-to-text is now the default (ElevenLabs, OpenAI, Azure, then Chrome). Nadia always speaks Bangla by design. (T-20, T-21) | Changed by decision |
+| TC-15 | After the switch to server speech recognition, interrupting Nadia felt broken: she kept talking. | Server recognition returns words only after the caller stops speaking, so the stop signal came 1 to 2 seconds late. | In server mode, about 0.6 seconds of caller voice on the microphone while Nadia speaks stops her at once; the words follow as usual. (T-22) | Fixed; needs a live check |
 
 ## Notes
 

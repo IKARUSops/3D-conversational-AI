@@ -44,7 +44,7 @@ Built by **Sharif Mohammad Omar Faruq** for the StrategyByte AI Engineer task (N
 - After a restart it can stay deaf, or keep "listening" while returning no words, even though the microphone hears the caller (TC-07, TC-13).
 - It splits phone numbers at short pauses, and it only works in Chrome.
 
-Each problem got a fix and a test, but a recognizer we do not control cannot be made fully reliable. So the default is now server speech-to-text on short clips cut by voice activity: **ElevenLabs Scribe, then OpenAI, then Azure**, and Chrome only if all three fail. A clip is always sent when the caller stops speaking, so a reply is never lost silently. The cost is about 0.5 to 1 second more per reply. See [`docs/TEST-CASES.md`](docs/TEST-CASES.md).
+Each problem got a fix and a test, but a recognizer we do not control cannot be made fully reliable. So the default is now server speech-to-text on short clips cut by voice activity: **OpenAI first, then Azure, then ElevenLabs Scribe**, and Chrome only if the server fails. OpenAI is first because it is on a paid plan here, so it does not run out of free credits during the review. A clip is always sent when the caller stops speaking, so a reply is never lost silently. The cost is about 0.5 to 1 second more per reply; to keep interruptions quick, Nadia stops talking as soon as the microphone hears the caller for about 0.6 seconds, before the words come back. See [`docs/TEST-CASES.md`](docs/TEST-CASES.md).
 
 **Credits note.** Credits are low right now. Everything except the OpenAI language model runs on free tiers. Each service has a fallback, so the system keeps working, but quality and speed drop when a fallback is active (for example, a different voice, or slower replies).
 
@@ -96,7 +96,7 @@ flowchart LR
   subgraph Providers
     LLM[Gemini Flash<br/>fallback GPT-4.1 mini]
     VOICE[ElevenLabs, OpenAI, Azure voices]
-    ASR[ElevenLabs Scribe, OpenAI, Azure STT]
+    ASR[OpenAI, Azure, ElevenLabs Scribe STT]
   end
   DB[(Supabase Postgres<br/>Singapore)]
   ST[(Supabase Storage<br/>private recordings)]
@@ -127,7 +127,7 @@ flowchart LR
 | Decision | Why | Trade-off |
 |---|---|---|
 | STT, LLM and TTS pipeline instead of one speech-to-speech model | We can pick the best Bangla model for each step, swap providers, and give the LLM tools and rules | More moving parts; latency kept low by streaming sentences |
-| Live speech-to-text on the server: ElevenLabs Scribe first, then OpenAI, then Azure, and Chrome's built-in recognizer only as the last fallback | Reliable on every browser: the app detects each phrase by voice activity and sends the clip, so a reply is never silently lost. ElevenLabs Scribe was the most accurate for Bangla names and digits in my tests | About 0.5 to 1 second slower per reply than Chrome's recognizer, and it uses paid or free-tier credits (see the speech note below) |
+| Live speech-to-text on the server: OpenAI first, then Azure, then ElevenLabs Scribe, and Chrome's built-in recognizer only as the last fallback | Reliable on every browser: the app detects each phrase by voice activity and sends the clip, so a reply is never silently lost. OpenAI is first because it is the paid account here (no free-credit limit during review); ElevenLabs Scribe was very accurate in tests but its free credits are small | About 0.5 to 1 second slower per reply than Chrome's recognizer, and it uses paid or free-tier credits (see the speech note below) |
 | Nadia always replies in Bangla | The product is a Bangla receptionist; one language keeps the voice, the prompt and the tests simple | English-only callers are understood but answered in Bangla |
 | Gemini Flash as the main LLM, GPT-4.1 mini as fallback | Fast first token, good Bangla, structured tool calls | Free tier limits; fallback costs money |
 | ElevenLabs voice first, then OpenAI, then Azure | ElevenLabs sounded most natural; Azure Bangla sounded robotic in tests | Free ElevenLabs quota is small; library voices need a paid plan, so a built-in voice is used |
@@ -192,7 +192,7 @@ I can explain every part of the code, including what the agents wrote.
 
 - **Prototype.** The call-end screen shows a link to the portal so reviewers can jump to the record. A real clinic release would hide it from callers.
 - **Low credits.** See the credits note in section 1. When fallbacks are active, the voice changes and replies can be slower.
-- **Server speech-to-text is a little slower** than a streaming model (about 0.5 to 1 second per reply), and it depends on provider credits. When ElevenLabs credits run out, OpenAI takes over automatically, then Azure, then Chrome.
+- **Server speech-to-text is a little slower** than a streaming model (about 0.5 to 1 second per reply), and it depends on provider credits. If OpenAI fails, Azure takes over automatically, then ElevenLabs, then Chrome.
 - **Bangla only.** Nadia answers in Bangla even when the caller speaks English (a product decision, not a bug).
 - **Headphones recommended.** On speakers, Nadia may hear her own voice; the echo filter reduces this but cannot remove it.
 - **End of turn.** A long pause inside a phone number can end the caller's turn early; Nadia asks for the rest and joins the parts.

@@ -95,7 +95,7 @@ export function initialCallState(
   return {
     phase: "idle",
     lang: init.lang ?? "bn",
-    sttProvider: init.sttProvider ?? "elevenlabs",
+    sttProvider: init.sttProvider ?? "openai",
     ttsProvider: init.ttsProvider ?? "elevenlabs",
     maxSeconds: 300,
     elapsedS: 0,

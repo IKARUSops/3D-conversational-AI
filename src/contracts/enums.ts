@@ -136,10 +136,11 @@ export type KeySource = (typeof KeySource)[number];
  * provider the caller picked; providers before it in the list are not used.
  */
 export const TTS_FALLBACK_ORDER: readonly TtsProviderId[] = ["elevenlabs", "openai", "azure"];
+/** Owner decision T-22: OpenAI first, ElevenLabs last (Chrome's recognizer is the client-side last resort). */
 export const SERVER_STT_FALLBACK_ORDER: readonly ServerSttProviderId[] = [
-  "elevenlabs",
   "openai",
   "azure",
+  "elevenlabs",
 ];
 
 // ---------------------------------------------------------------------------

@@ -30,9 +30,9 @@ export interface CallPanelProps {
 
 const FALLBACK_PROVIDERS: ProvidersResponse = {
   stt: [
-    { id: "elevenlabs", label: "ElevenLabs Scribe", available: true, isDefault: true },
-    { id: "openai", label: "OpenAI", available: true },
+    { id: "openai", label: "OpenAI", available: true, isDefault: true },
     { id: "azure", label: "Azure (bn-IN)", available: true },
+    { id: "elevenlabs", label: "ElevenLabs Scribe", available: true },
     { id: "browser", label: "Browser (Chrome, bn-BD)", available: true },
   ],
   tts: [

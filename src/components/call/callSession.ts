@@ -44,6 +44,9 @@ const STT_WATCH_MS = 200;
 const VOICE_LEVEL = 0.15;
 /** Total speaking time with no recognized text before the recognizer is treated as stuck. */
 const VOICE_STALL_MS = 3000;
+/** Server STT barge-in: caller level and how long it must last while the agent speaks. */
+const BARGE_LEVEL = 0.2;
+const BARGE_MS = 600;
 const TIME_WARNING_S = LIMITS.TIME_WARNING_SECONDS;
 
 function micErrorKind(err: unknown): CallErrorKind {
@@ -67,7 +70,7 @@ export class CallSession {
 
   private callId: string | null = null;
   private token: string | null = null;
-  private stt: SttProviderId = "elevenlabs";
+  private stt: SttProviderId = "openai";
   private serverSttFailures = 0;
   private tts: TtsProviderId = "elevenlabs";
   private maxSeconds: number = LIMITS.DEFAULT_MAX_CALL_SECONDS;
@@ -159,7 +162,7 @@ export class CallSession {
 
     let wantStt = stt;
     if (!this.textOnly && stt === "browser" && !browserSttAvailable()) {
-      wantStt = "elevenlabs";
+      wantStt = "openai";
       this.dispatch({ type: "NOTICE", notice: "browser_stt_unsupported" });
     }
 
@@ -275,8 +278,8 @@ export class CallSession {
   private async switchToServerStt(): Promise<void> {
     this.browserStt?.stop();
     this.browserStt = null;
-    this.stt = "elevenlabs";
-    this.dispatch({ type: "SWITCH_STT", stt: "elevenlabs" });
+    this.stt = "openai";
+    this.dispatch({ type: "SWITCH_STT", stt: "openai" });
     this.dispatch({ type: "NOTICE", notice: "stt_network_switch" });
     await this.startVad();
   }
@@ -322,7 +325,7 @@ export class CallSession {
     try {
       const fd = new FormData();
       fd.append("audio", new Blob([wav], { type: "audio/wav" }), "clip.wav");
-      fd.append("provider", (this.stt === "browser" ? "elevenlabs" : this.stt) as ServerSttProviderId);
+      fd.append("provider", (this.stt === "browser" ? "openai" : this.stt) as ServerSttProviderId);
       fd.append("callId", this.callId);
       fd.append("lang", this.opts.lang);
       const res = await fetch("/api/stt", { method: "POST", headers: { Authorization: `Bearer ${this.token}` }, body: fd });
@@ -549,7 +552,28 @@ export class CallSession {
    * while the agent is quiet and no text arrives: first restart the recognizer, the second time
    * switch to server speech recognition for the rest of the call.
    */
+  /**
+   * Barge-in for server STT (TC-15): words arrive only after the caller stops, so the agent would
+   * talk over them. Caller voice for BARGE_MS while the agent plays stops the agent at once; the
+   * clip is transcribed as usual. The mic uses echo cancellation, so the agent's own voice is
+   * mostly removed (headphones still recommended).
+   */
+  private bargeVoiceMs = 0;
+  private watchServerBargeIn(): void {
+    if (this.ending || this.stt === "browser" || !this.micAnalyser || !this.queue?.isPlaying()) {
+      this.bargeVoiceMs = 0;
+      return;
+    }
+    if (this.getCallerLevel() >= BARGE_LEVEL) this.bargeVoiceMs += STT_WATCH_MS;
+    else this.bargeVoiceMs = Math.max(0, this.bargeVoiceMs - STT_WATCH_MS / 2);
+    if (this.bargeVoiceMs >= BARGE_MS) {
+      this.bargeVoiceMs = 0;
+      this.bargeIn();
+    }
+  }
+
   private watchBrowserStt(): void {
+    this.watchServerBargeIn();
     if (this.ending || this.stt !== "browser" || !this.browserStt || !this.micAnalyser) return;
     if (this.queue?.isActive() || this.turnStreaming) {
       this.voiceMsWithoutText = 0;

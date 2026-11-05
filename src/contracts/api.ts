@@ -154,7 +154,7 @@ export const ProvidersResponseSchema = z.object({
 });
 export type ProvidersResponse = z.infer<typeof ProvidersResponseSchema>;
 
-export const DEFAULT_STT_PROVIDER: SttProviderId = "elevenlabs";
+export const DEFAULT_STT_PROVIDER: SttProviderId = "openai";
 export const DEFAULT_TTS_PROVIDER: TtsProviderId = "elevenlabs";
 
 // ---------------------------------------------------------------------------

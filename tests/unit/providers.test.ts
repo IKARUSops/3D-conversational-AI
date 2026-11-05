@@ -174,20 +174,23 @@ describe("T2.3 FR-C14 fallback chain", () => {
   it("STT throws AllProvidersFailedError when every provider fails", async () => {
     const fetchImpl = vi.fn<FetchLike>(async () => new Response("err", { status: 500 }));
     await expect(
-      transcribeClipWithFallback({ wav: new ArrayBuffer(10), lang: "bn", start: "elevenlabs" }, { resolveKey: allKeys, fetchImpl }),
+      transcribeClipWithFallback({ wav: new ArrayBuffer(10), lang: "bn", start: "openai" }, { resolveKey: allKeys, fetchImpl }),
     ).rejects.toBeInstanceOf(AllProvidersFailedError);
     expect(fetchImpl).toHaveBeenCalledTimes(3);
   });
 
-  it("STT falls back from ElevenLabs to OpenAI", async () => {
+  it("STT order is OpenAI, Azure, ElevenLabs (T-22): OpenAI down falls through to the next", async () => {
     const fetchImpl = vi.fn<FetchLike>(async (url) =>
-      String(url).includes("elevenlabs") ? new Response("x", { status: 503 }) : Response.json({ text: "জি" }),
+      String(url).includes("openai") || String(url).includes("microsoft") || String(url).includes("azure")
+        ? new Response("x", { status: 503 })
+        : Response.json({ text: "জি" }),
     );
     const r = await transcribeClipWithFallback(
-      { wav: new ArrayBuffer(10), lang: "bn", start: "elevenlabs" },
+      { wav: new ArrayBuffer(10), lang: "bn", start: "openai" },
       { resolveKey: allKeys, fetchImpl },
     );
-    expect(r).toMatchObject({ text: "জি", provider: "openai", fallbackFrom: "elevenlabs" });
+    expect(r).toMatchObject({ text: "জি", provider: "elevenlabs", fallbackFrom: "openai" });
+    expect(String(fetchImpl.mock.calls[0]![0])).toContain("openai");
   });
 });
 
@@ -199,7 +202,8 @@ describe("T2.3 FR-B2 GET /api/providers availability", () => {
     resetEnvCache();
     const r = providerAvailability();
     // T-20: server STT first, Chrome's recognizer last.
-    expect(r.stt.map((s) => s.id)).toEqual(["elevenlabs", "openai", "azure", "browser"]);
+    expect(r.stt.map((s) => s.id)).toEqual(["openai", "azure", "elevenlabs", "browser"]);
+    // Only ElevenLabs has a key in this test, so it is the default.
     expect(r.stt.find((s) => s.id === "elevenlabs")).toMatchObject({ available: true, isDefault: true });
     expect(r.stt.find((s) => s.id === "browser")?.isDefault).toBeUndefined();
     expect(r.tts.find((s) => s.id === "elevenlabs")).toMatchObject({ available: true, isDefault: true });
