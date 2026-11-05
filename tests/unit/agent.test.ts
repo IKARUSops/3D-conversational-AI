@@ -210,6 +210,7 @@ describe("T2.4 history window", () => {
 
 describe("T2.4 post-call extraction merge", () => {
   const llm: LlmExtraction = {
+    offTopicTurns: 0,
     intent: "enquiry",
     patientNameBn: "শরিফ",
     patientNameEn: null,

@@ -77,6 +77,7 @@ async function statusFromDb(
   state: AgentState,
   endReason: EndReason,
   extractedIntent: CallExtraction["intent"] | null,
+  extractedOffTopicTurns: number | null = null,
 ): Promise<FinalCallStatus> {
   const db = getDb();
   const [history, callbacksCreated, events, callerTurns] = await Promise.all([
@@ -97,6 +98,7 @@ async function statusFromDb(
       callerTurns,
       endReason,
       extractedIntent,
+      extractedOffTopicTurns,
     }),
   );
 }
@@ -231,7 +233,7 @@ async function runOnce(
   }
 
   // Step 8: status from DB facts.
-  const status = await statusFromDb(callId, state, endReason, ex?.intent ?? null);
+  const status = await statusFromDb(callId, state, endReason, ex?.intent ?? null, ex?.offTopicTurns ?? null);
 
   // Step 9: done.
   await db.call.update({

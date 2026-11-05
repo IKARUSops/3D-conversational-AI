@@ -67,6 +67,7 @@ vi.mock("@/lib/agent/postcall", async (orig) => {
       h.extractions.push({ agentState: input.agentState, liveTurns: input.liveTurns });
       return real.mergeExtraction(
         {
+          offTopicTurns: 0,
           intent: "unknown",
           patientNameBn: null,
           patientNameEn: null,

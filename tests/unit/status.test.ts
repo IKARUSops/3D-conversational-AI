@@ -156,3 +156,22 @@ describe("statusFactsFrom (T1.6)", () => {
     );
   });
 });
+
+describe("spam safety net from the post-call count (TC-11)", () => {
+  const base = (over: Partial<StatusSources>): StatusSources => ({
+    history: [],
+    callbacksCreated: 0,
+    events: [],
+    agentState: createInitialAgentState(),
+    callerTurns: 5,
+    endReason: "agent_end",
+    ...over,
+  });
+  it("4 off-topic turns and no flag_off_topic call is spam", () => {
+    expect(computeCallStatus(statusFactsFrom(base({ extractedOffTopicTurns: 4 })))).toBe("spam");
+  });
+  it("a real clinic question keeps it an enquiry", () => {
+    const events = [{ type: "tool_call", payload: { name: "get_clinic_info" } }];
+    expect(computeCallStatus(statusFactsFrom(base({ extractedOffTopicTurns: 3, events })))).toBe("enquiry");
+  });
+});

@@ -49,6 +49,8 @@ export interface CallExtraction {
   sentiment: "positive" | "neutral" | "negative" | null;
   languageMix: "bn" | "en" | "mixed";
   callbackCategory: CallbackCategory | null;
+  /** Caller turns that were off-topic or prank (post-call LLM count; spam safety net, TC-11). */
+  offTopicTurns?: number;
   summaryBn: string;
   summaryEn: string;
   /** 0..1 per field name. */
@@ -100,6 +102,11 @@ export const LlmExtractionSchema = z.object({
   sentiment: SentimentSchema,
   languageMix: LanguageMixSchema,
   callbackCategory: CallbackCategorySchema.nullable(),
+  offTopicTurns: z
+    .number()
+    .int()
+    .min(0)
+    .describe("How many caller turns were irrelevant, prank or personal questions not about the clinic or teeth"),
   summaryBn: z.string().describe("2 or 3 short Bangla sentences"),
   summaryEn: z.string().describe("2 or 3 short English sentences"),
   confidence: z.object({
@@ -152,6 +159,7 @@ export function mergeExtraction(llm: LlmExtraction, state: AgentState, model: st
     sentiment: llm.sentiment,
     languageMix: llm.languageMix,
     callbackCategory: llm.callbackCategory,
+    offTopicTurns: llm.offTopicTurns,
     summaryBn: llm.summaryBn.normalize("NFC"),
     summaryEn: llm.summaryEn,
     fieldConfidence,

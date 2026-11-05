@@ -325,7 +325,7 @@ export function createAgentTools(rt: ToolRuntime, tracker: ToolTracker): ToolSet
 
     flag_off_topic: tool({
       description:
-        "Call when the caller's message is irrelevant, a prank or abusive. If endCall is true, say a polite goodbye and call end_call.",
+        "Call EVERY time the caller's message is irrelevant (sports, songs, general knowledge, personal questions), a prank or abusive, in the same reply as your short redirect. If endCall is true, say a polite goodbye and call end_call.",
       inputSchema: FlagOffTopicInputSchema,
       execute: wrap("flag_off_topic", (input) => {
         const streak = rt.holder.state.offTopicStreak + (input.kind === "abuse" ? 2 : 1);

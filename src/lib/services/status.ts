@@ -51,6 +51,8 @@ export interface StatusSources {
   endReason: EndReason;
   /** Intent from the post-call extraction, used only as a weak enquiry signal. */
   extractedIntent?: Intent | null;
+  /** Off-topic caller turns counted by the post-call extraction (TC-11 safety net). */
+  extractedOffTopicTurns?: number | null;
 }
 
 /** Tools whose use means the caller got information. */
@@ -87,6 +89,11 @@ export function statusFactsFrom(src: StatusSources): StatusFacts {
   }
   if (src.agentState.intent === "enquiry" || src.extractedIntent === "enquiry") {
     infoGiven = infoGiven || src.callerTurns > 0;
+  }
+  // The live agent may forget flag_off_topic (TC-11); trust the post-call count when the caller
+  // got no real information.
+  if (!infoGiven && typeof src.extractedOffTopicTurns === "number") {
+    offTopicStreakMax = Math.max(offTopicStreakMax, src.extractedOffTopicTurns);
   }
   return {
     appointmentActions: src.history.map((h) => ({ action: h.action, at: h.at.toISOString() })),
