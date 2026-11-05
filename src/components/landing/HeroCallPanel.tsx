@@ -23,7 +23,8 @@ function readReviewKey(): string | undefined {
 export function HeroCallPanel({ open, onClose, lang, onMascotChange }: CallPanelProps) {
   const { t } = useLang();
   const [reviewKey] = useState(readReviewKey);
-  const call = useCall({ lang, reviewKey });
+  // Nadia always speaks Bangla (owner decision T-21); the page language only changes the UI text.
+  const call = useCall({ lang: "bn", reviewKey });
   const closeRef = useRef<HTMLButtonElement>(null);
   const { getAgentLevel, getCallerLevel, mascotState } = call;
 

@@ -371,15 +371,20 @@ export function providerAvailability(): ProvidersResponse {
   const has = (id: ServerSttProviderId | TtsProviderId) => platformKey(id) !== null;
   const reason = "No key configured";
   return {
-    stt: [
-      { id: "browser", label: STT_LABELS.browser, available: true, isDefault: true },
-      ...SERVER_STT_FALLBACK_ORDER.map((id) => ({
-        id,
-        label: STT_LABELS[id],
-        available: has(id),
-        ...(has(id) ? {} : { reason }),
-      })),
-    ],
+    // Owner decision T-20: server STT first (ElevenLabs, OpenAI, Azure), Chrome's recognizer last.
+    stt: (() => {
+      const firstServer = SERVER_STT_FALLBACK_ORDER.find((id) => has(id));
+      return [
+        ...SERVER_STT_FALLBACK_ORDER.map((id) => ({
+          id,
+          label: STT_LABELS[id],
+          available: has(id),
+          ...(id === firstServer ? { isDefault: true } : {}),
+          ...(has(id) ? {} : { reason }),
+        })),
+        { id: "browser" as const, label: STT_LABELS.browser, available: true, ...(firstServer ? {} : { isDefault: true }) },
+      ];
+    })(),
     tts: TTS_FALLBACK_ORDER.map((id) => ({
       id,
       label: TTS_LABELS[id],

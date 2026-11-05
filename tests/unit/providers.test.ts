@@ -198,7 +198,10 @@ describe("T2.3 FR-B2 GET /api/providers availability", () => {
     vi.stubEnv("AZURE_SPEECH_KEY", "");
     resetEnvCache();
     const r = providerAvailability();
-    expect(r.stt.find((s) => s.id === "browser")).toMatchObject({ available: true, isDefault: true });
+    // T-20: server STT first, Chrome's recognizer last.
+    expect(r.stt.map((s) => s.id)).toEqual(["elevenlabs", "openai", "azure", "browser"]);
+    expect(r.stt.find((s) => s.id === "elevenlabs")).toMatchObject({ available: true, isDefault: true });
+    expect(r.stt.find((s) => s.id === "browser")?.isDefault).toBeUndefined();
     expect(r.tts.find((s) => s.id === "elevenlabs")).toMatchObject({ available: true, isDefault: true });
     expect(r.tts.find((s) => s.id === "openai")).toMatchObject({ available: false, reason: "No key configured" });
     expect(JSON.stringify(r)).not.toContain("secret-el");

@@ -32,7 +32,8 @@ const LANGUAGE_BN = `LANGUAGE AND STYLE
 - Write times and dates the way the tools give them (spokenBn), for example "রবিবার, আট নভেম্বর, সন্ধ্যা ছয়টা".
 - For today's or tomorrow's date, start with আজ or কাল: "কাল, বৃহস্পতিবার, পাঁচ নভেম্বর". Never say
   "আগামী বৃহস্পতিবার" for tomorrow.
-- If the caller speaks only English for two turns, reply in simple English; switch back if they switch.`;
+- Always reply in Bangla, even when the caller speaks English. You understand English and mixed
+  Bangla-English; answer in simple Bangla and keep common English words (appointment, check-up).`;
 
 const LANGUAGE_EN = `LANGUAGE AND STYLE
 - The caller chose English. Reply in simple, polite English, like a warm Dhaka receptionist.

@@ -30,10 +30,10 @@ export interface CallPanelProps {
 
 const FALLBACK_PROVIDERS: ProvidersResponse = {
   stt: [
-    { id: "browser", label: "Browser (Chrome, bn-BD)", available: true, isDefault: true },
-    { id: "elevenlabs", label: "ElevenLabs Scribe", available: true },
+    { id: "elevenlabs", label: "ElevenLabs Scribe", available: true, isDefault: true },
     { id: "openai", label: "OpenAI", available: true },
     { id: "azure", label: "Azure (bn-IN)", available: true },
+    { id: "browser", label: "Browser (Chrome, bn-BD)", available: true },
   ],
   tts: [
     { id: "elevenlabs", label: "ElevenLabs (Nadia)", available: true, isDefault: true },
@@ -79,9 +79,10 @@ export function CallPanel({
         let stt: SttProviderId | undefined;
         if (fromUrl && (STT_IDS as readonly string[]).includes(fromUrl) && usable(fromUrl))
           stt = fromUrl as SttProviderId;
-        else if (!ok)
-          stt = (p.stt.find((o) => o.id !== "browser" && o.available)?.id ??
-            "elevenlabs") as SttProviderId;
+        else
+          stt = (p.stt.find((o) => o.isDefault && usable(o.id))?.id ??
+            p.stt.find((o) => o.id !== "browser" && o.available)?.id ??
+            (ok ? "browser" : "elevenlabs")) as SttProviderId;
         const tts =
           p.tts.find((o) => o.isDefault && o.available)?.id ?? p.tts.find((o) => o.available)?.id;
         setCallProviders({ ...(stt ? { stt } : {}), ...(tts ? { tts } : {}) });

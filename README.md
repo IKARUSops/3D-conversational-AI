@@ -15,14 +15,15 @@ Built by **Sharif Mohammad Omar Faruq** for the StrategyByte AI Engineer task (N
 
 ## 1. How to review (5 minutes)
 
-1. Open the landing page in **Chrome on a computer**, ideally with **headphones**.
+1. Open the landing page on a computer (Chrome or Edge work best), ideally with **headphones**.
 2. Press **"বাংলা কলারের সাথে কথা বলুন"** (Talk to our Bangla caller), allow the microphone, and talk to Nadia.
 3. Log in to the portal with the reviewer account from the email. Your call appears in the calls list a few seconds after you hang up.
 
 **Testing tips**
 
-- When Nadia asks for the phone number, **say each digit separately**, for example "শূন্য এক সাত এক দুই ...". Do not say "ডাবল ছয়" or "double six". Nadia understands "double", but single digits are the most reliable with browser speech recognition. Pause for a second after the last digit.
-- **If Nadia does not hear you, please do not end the call.** Sometimes Chrome's speech recognition misses a reply for a few seconds, and Nadia asks "হ্যালো, আপনি কি শুনতে পাচ্ছেন?". Wait a second and say your answer again: it recovers and the call continues. If it happens often, choose **OpenAI** or **ElevenLabs** in the speech dropdown of the call panel (server recognition, about 1 second slower), or type your reply.
+- When Nadia asks for the phone number, **say each digit separately**, for example "শূন্য এক সাত এক দুই ...". Do not say "ডাবল ছয়" or "double six". Nadia understands "double", but single digits are the most reliable. Pause for a second after the last digit.
+- **Nadia always speaks Bangla.** She understands English and mixed Bangla-English ("appointment", "check-up", "next Monday"), but she always answers in Bangla, because the product is a Bangla receptionist. The বাংলা / EN switch changes only the page text.
+- **If Nadia does not hear you, please do not end the call.** If she asks "হ্যালো, আপনি কি শুনতে পাচ্ছেন?", wait a second and say your answer again: the call recovers and continues. You can also type your reply.
 - Wait for Nadia to finish her question before you answer. You can also interrupt her on purpose: she stops at once.
 - No microphone, or testing with an automated agent? Use **"মাইক ছাড়া লিখে কথা বলুন"** (type instead of speaking) in the call panel.
 - Many test calls from one network: use the review link from the email (`?key=...`). It skips the limit of 30 calls per network per hour.
@@ -36,6 +37,14 @@ Built by **Sharif Mohammad Omar Faruq** for the StrategyByte AI Engineer task (N
 | Receptionist (`...+reception@gmail.com`) | Daily clinic work: calls, appointments, callbacks (mark done). It does **not** see Settings. |
 
 **Why you may not see the API keys (BYOK).** The Settings page, where a clinic adds its own provider keys, is for admins only. The receptionist account does not show it. The reviewer account shows it in read-only mode, so reviewers can see it but cannot change the keys. To edit keys, the clinic owner turns off read-only for an admin: in Supabase, open Table Editor, then `staff_users`, set `read_only` to false on that row, add the keys in the portal, then set `read_only` back to true.
+
+**Why speech recognition runs on the server (and Chrome is only the last fallback).** I started with Chrome's built-in recognizer (Web Speech, bn-BD): it is free, fast and had very good Bangla accuracy in my first tests. In real test calls it proved unreliable:
+
+- It sometimes never marks a phrase as finished, so the reply never reaches Nadia (TC-04).
+- After a restart it can stay deaf, or keep "listening" while returning no words, even though the microphone hears the caller (TC-07, TC-13).
+- It splits phone numbers at short pauses, and it only works in Chrome.
+
+Each problem got a fix and a test, but a recognizer we do not control cannot be made fully reliable. So the default is now server speech-to-text on short clips cut by voice activity: **ElevenLabs Scribe, then OpenAI, then Azure**, and Chrome only if all three fail. A clip is always sent when the caller stops speaking, so a reply is never lost silently. The cost is about 0.5 to 1 second more per reply. See [`docs/TEST-CASES.md`](docs/TEST-CASES.md).
 
 **Credits note.** Credits are low right now. Everything except the OpenAI language model runs on free tiers. Each service has a fallback, so the system keeps working, but quality and speed drop when a fallback is active (for example, a different voice, or slower replies).
 
@@ -72,8 +81,8 @@ Built by **Sharif Mohammad Omar Faruq** for the StrategyByte AI Engineer task (N
 flowchart LR
   subgraph Browser
     LP[Landing page + 3D Byte] --> CP[Call panel]
-    CP -->|mic| STT[Chrome speech recognition bn-BD]
-    CP -->|mic, other browsers| VAD[Voice activity clips]
+    CP -->|mic, last fallback| STT[Chrome speech recognition bn-BD]
+    CP -->|mic, default| VAD[Voice activity clips]
     CP --> REC[Caller recording]
   end
   subgraph Vercel["Vercel (Singapore, sin1)"]
@@ -118,7 +127,8 @@ flowchart LR
 | Decision | Why | Trade-off |
 |---|---|---|
 | STT, LLM and TTS pipeline instead of one speech-to-speech model | We can pick the best Bangla model for each step, swap providers, and give the LLM tools and rules | More moving parts; latency kept low by streaming sentences |
-| Live STT in the browser (Chrome Web Speech, bn-BD) | Best Bangla accuracy in my own tests, free, no audio upload per turn | Chrome only; other browsers use server STT on short clips |
+| Live speech-to-text on the server: ElevenLabs Scribe first, then OpenAI, then Azure, and Chrome's built-in recognizer only as the last fallback | Reliable on every browser: the app detects each phrase by voice activity and sends the clip, so a reply is never silently lost. ElevenLabs Scribe was the most accurate for Bangla names and digits in my tests | About 0.5 to 1 second slower per reply than Chrome's recognizer, and it uses paid or free-tier credits (see the speech note below) |
+| Nadia always replies in Bangla | The product is a Bangla receptionist; one language keeps the voice, the prompt and the tests simple | English-only callers are understood but answered in Bangla |
 | Gemini Flash as the main LLM, GPT-4.1 mini as fallback | Fast first token, good Bangla, structured tool calls | Free tier limits; fallback costs money |
 | ElevenLabs voice first, then OpenAI, then Azure | ElevenLabs sounded most natural; Azure Bangla sounded robotic in tests | Free ElevenLabs quota is small; library voices need a paid plan, so a built-in voice is used |
 | Supabase (Postgres, Auth, Storage) in Singapore | Relational data fits calls, patients and appointments; close to Dhaka | Free projects pause after 7 days idle, so three keep-alive layers |
@@ -182,8 +192,8 @@ I can explain every part of the code, including what the agents wrote.
 
 - **Prototype.** The call-end screen shows a link to the portal so reviewers can jump to the record. A real clinic release would hide it from callers.
 - **Low credits.** See the credits note in section 1. When fallbacks are active, the voice changes and replies can be slower.
-- **Short deaf moments.** Chrome's built-in speech recognition sometimes misses a reply for a few seconds; Nadia then asks "হ্যালো?" and the call recovers when the caller speaks again. If the microphone hears the caller for 3 seconds but Chrome returns no words, the app restarts the recognizer, and the second time it switches to server speech recognition for the rest of the call (a notice shows in the call panel). Several fixes are in (TC-04, TC-06, TC-07, TC-08); a streaming speech model of our own would remove this fully (future work).
-- **Browser STT is Chrome only.** Other browsers use server STT on short clips, which is slower.
+- **Server speech-to-text is a little slower** than a streaming model (about 0.5 to 1 second per reply), and it depends on provider credits. When ElevenLabs credits run out, OpenAI takes over automatically, then Azure, then Chrome.
+- **Bangla only.** Nadia answers in Bangla even when the caller speaks English (a product decision, not a bug).
 - **Headphones recommended.** On speakers, Nadia may hear her own voice; the echo filter reduces this but cannot remove it.
 - **End of turn.** A long pause inside a phone number can end the caller's turn early; Nadia asks for the rest and joins the parts.
 - **Free tiers** have daily limits; a daily cap of 300 calls protects the demo.

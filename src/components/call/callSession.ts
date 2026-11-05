@@ -67,7 +67,8 @@ export class CallSession {
 
   private callId: string | null = null;
   private token: string | null = null;
-  private stt: SttProviderId = "browser";
+  private stt: SttProviderId = "elevenlabs";
+  private serverSttFailures = 0;
   private tts: TtsProviderId = "elevenlabs";
   private maxSeconds: number = LIMITS.DEFAULT_MAX_CALL_SECONDS;
   private startedAt = 0;
@@ -280,6 +281,16 @@ export class CallSession {
     await this.startVad();
   }
 
+  private async switchToBrowserStt(): Promise<void> {
+    if (this.ending || this.stt === "browser") return;
+    this.vad?.stop();
+    this.vad = null;
+    this.stt = "browser";
+    this.browserSttResets = 2; // no switching back and forth
+    this.dispatch({ type: "SWITCH_STT", stt: "browser" });
+    await this.startStt();
+  }
+
   private async startVad(): Promise<void> {
     if (!this.ctx || this.ending) return;
     if (!this.stream) {
@@ -317,8 +328,11 @@ export class CallSession {
       const res = await fetch("/api/stt", { method: "POST", headers: { Authorization: `Bearer ${this.token}` }, body: fd });
       if (!res.ok) {
         this.dispatch({ type: "NOTICE", notice: "turn_failed" });
+        // Every server provider failed twice in a row: Chrome's recognizer is the last fallback (T-20).
+        if (++this.serverSttFailures >= 2 && browserSttAvailable()) void this.switchToBrowserStt();
         return;
       }
+      this.serverSttFailures = 0;
       const r = (await res.json()) as SttResponse;
       if (r.fallbackFrom) this.dispatch({ type: "NOTICE", notice: "stt_fallback" });
       if (r.text.trim()) this.onCallerText(r.text, true, r.confidence);
