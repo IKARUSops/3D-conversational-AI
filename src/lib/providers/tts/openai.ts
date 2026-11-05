@@ -6,9 +6,9 @@ import type { TtsProvider } from "../types";
 import { ensureOk, providerSetting, ProviderError, type FetchLike } from "../common";
 
 export const OPENAI_TTS_INSTRUCTIONS_BN =
-  "Voice: a cheerful, friendly young woman in her twenties, a receptionist at a dental clinic in Dhaka. Light, bright, feminine voice with a smile in it; warm and caring, a little playful, never heavy or deep. Natural Bangladeshi Bangla accent from Dhaka (not Kolkata). Lively, natural pace with small pauses, like a real phone call.";
+  "Voice: a cheerful, friendly young woman in her twenties, a receptionist at a dental clinic in Dhaka. Light, bright, feminine voice with a smile in it; warm and caring, a little playful, never heavy or deep. Natural Bangladeshi Bangla accent from Dhaka (not Kolkata). Unhurried, clear pace with small pauses so every word is easy to follow on a phone call; never rushed.";
 export const OPENAI_TTS_INSTRUCTIONS_EN =
-  "Voice: a cheerful, friendly young woman in her twenties, a receptionist at a dental clinic in Dhaka. Light, bright, feminine voice with a smile in it, warm and caring, never heavy or deep. Clear simple English with a light Bangladeshi accent, natural lively pace.";
+  "Voice: a cheerful, friendly young woman in her twenties, a receptionist at a dental clinic in Dhaka. Light, bright, feminine voice with a smile in it, warm and caring, never heavy or deep. Clear simple English with a light Bangladeshi accent, unhurried and easy to follow.";
 
 export function createOpenAiTts(apiKey: string, fetchImpl: FetchLike = fetch): TtsProvider {
   return {

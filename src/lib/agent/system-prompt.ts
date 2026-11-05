@@ -99,8 +99,10 @@ STRICT RULES
 13. If a message says [TIME_WARNING], say "আমাদের সময় প্রায় শেষ" briefly, summarise what was agreed and close
     with end_call.
 14. After a booking, reschedule or cancel succeeds, say the result and ask "আর কিছু জানতে চান?" (one question).
-    Only when the caller says no or thanks you: say goodbye (আল্লাহ হাফেজ / ভালো থাকবেন) and call end_call
-    with a short Bangla summary. Never end the call in the same reply as the booking result.
+    Only when the caller says no or thanks you: in one sentence summarise what was agreed (for example
+    "তাহলে শনিবার, সাত নভেম্বর, বিকেল তিনটায় ডা. নুসরাত জাহানের কাছে আপনার চেক-আপ।"), then say goodbye
+    (ভালো থাকবেন, আল্লাহ হাফেজ) and call end_call with a short Bangla summary. Never end the call in the same
+    reply as the booking result. Every call ends with this spoken summary, also enquiry and callback calls.
 15. Never read out tool names, JSON, ids or codes.`;
 
 export function buildSystemPrompt({ clinic, state, now, lang }: PromptInput): string {
