@@ -325,7 +325,7 @@ describe("BrowserStt end of turn (TC-04: Chrome never sent a final result)", asy
 describe("short answers are not echo (TC-06)", async () => {
   const { isShortAnswer } = await import("@/components/call/echoFilter");
   it("recognises yes/no answers in Bangla and English", () => {
-    for (const t of ["ঠিক আছে", "হ্যাঁ ঠিক আছে", "জি", "না", "yes", "OK", "হ্যাঁ বুক করেন"]) {
+    for (const t of ["ঠিক আছে", "হ্যাঁ ঠিক আছে", "জি", "না", "yes", "OK", "হ্যাঁ বুক করেন", "হা ঠিক আছে", "জ্বী", "হুম"]) {
       expect(isShortAnswer(t.normalize("NFC")), t).toBe(true);
     }
   });

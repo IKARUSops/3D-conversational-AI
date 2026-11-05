@@ -285,8 +285,9 @@ export async function runTurn(args: RunTurnArgs, deps: TurnDeps, emit: (e: TurnE
       messages.push({ role: "user", content: nfc(body.text) || "[CONTINUE]" });
     }
 
+    const lastAgentText = [...history].reverse().find((h) => h.speaker === "agent")?.text ?? "";
     const tools = createAgentTools(
-      { callId, clinicId, clinic, lang, now, holder, services: svc },
+      { callId, clinicId, clinic, lang, now, holder, services: svc, lastAgentText },
       tracker,
     );
 

@@ -373,7 +373,7 @@ describe("I-08 full flow: start -> turns -> end -> finalize", () => {
       (p) => {
         offered = toolOutput<{ slots: typeof offered }>(p, "check_availability").slots;
         expect(offered.length).toBeGreaterThan(0);
-        return step(`${offered[0]!.spokenBn} খালি আছে। এই সময়ে দিব?`);
+        return step(`${NAME}, শেষ চার ৫৬৭৮, স্কেলিং, ${offered[0]!.spokenBn}। বুক করব, ঠিক আছে?`);
       },
     ]);
     expectSpeakable(e3);

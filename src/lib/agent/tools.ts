@@ -49,6 +49,8 @@ export interface ToolRuntime {
   /** Live state; tools replace `holder.state`. */
   holder: { state: AgentState };
   services?: AgentServices;
+  /** The agent's last spoken turn before this caller turn (for the read-back check). */
+  lastAgentText?: string;
 }
 
 export interface ToolTracker {
@@ -86,6 +88,21 @@ export function bookingPrecheck(state: AgentState): (BookingResult & { hint?: st
     };
   }
   return null;
+}
+
+/**
+ * Was the agent's last turn a full read-back question? (TC-08: the caller picked a slot and the
+ * LLM booked at once.) It must ask something and include the caller's name or the last phone
+ * digits ("শেষ চার" / "last four"), which a slot offer never does.
+ */
+export function wasReadBack(lastAgentText: string | undefined, state: AgentState): boolean {
+  const t = (lastAgentText ?? "").normalize("NFC");
+  if (!/[?？]/.test(t)) return false;
+  const name = state.patient?.nameBn?.normalize("NFC");
+  const nameEn = state.patient?.nameEn?.toLowerCase();
+  if (name && t.includes(name)) return true;
+  if (nameEn && t.toLowerCase().includes(nameEn)) return true;
+  return /শেষ|last (4|four)/i.test(t);
 }
 
 /** Mark a present name and valid phone as confirmed (after a yes to the full read-back). */
@@ -187,6 +204,13 @@ export function createAgentTools(rt: ToolRuntime, tracker: ToolTracker): ToolSet
       execute: wrap("book_appointment", async (input) => {
         // The final read-back says the name and phone too, so the caller's yes to it confirms them
         // (TC-03: stacked questions left them unconfirmed and booking looped).
+        if (rt.lastAgentText !== undefined && !wasReadBack(rt.lastAgentText, rt.holder.state)) {
+          return {
+            ok: false as const,
+            error: "need_confirmation" as const,
+            hint: "Do not book yet. In one sentence read back the name, the last 4 phone digits, service, doctor, day, date and time, ask \"ঠিক আছে?\" and wait for the caller's yes.",
+          };
+        }
         if (input.callerConfirmed === true) set(confirmIdentity(rt.holder.state));
         const pre = bookingPrecheck(rt.holder.state);
         if (pre) return pre;

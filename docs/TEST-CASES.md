@@ -1,8 +1,8 @@
 # Live test cases
 
-Seven real test calls made on 4 and 5 November 2026, before the demo data was recorded. Each one found a problem; each problem was traced in the code, fixed, and covered by an automated test. Reviewers can open these calls in the portal (they are the earliest calls in the list) instead of reading transcripts here.
+Eight real test calls made on 4 and 5 November 2026, before the demo data was recorded. Each one found a problem; each problem was traced in the code, fixed, and covered by an automated test. Reviewers can open these calls in the portal (they are the earliest calls in the list) instead of reading transcripts here.
 
-All tests run with `pnpm test` (281 passing). Decision ids (T-xx) point to [`DECISIONS.md`](DECISIONS.md).
+All tests run with `pnpm test` (282 passing). Decision ids (T-xx) point to [`DECISIONS.md`](DECISIONS.md).
 
 | Case | What happened | Cause | Fix | Status |
 |---|---|---|---|---|
@@ -13,6 +13,7 @@ All tests run with `pnpm test` (281 passing). Decision ids (T-xx) point to [`DEC
 | TC-05 | The booking worked, but Nadia said "শনিবার, পাঁচ নভেম্বর" for Saturday 7 November, read all 11 digits twice, and stacked questions again. | The LLM worked out a date itself, and prompt rules alone did not stop stacked questions. | Today, tomorrow and the next open day are computed in code. Text after the first question mark is dropped (one question per reply, in code). Final read-back uses the last 4 digits. The portal shows rule results like "closed friday" as normal. (T-09) | Fixed, tested |
 | TC-06 | First call on Vercel: the caller said "ঠিক আছে" several times and Nadia kept asking "শুনতে পাচ্ছেন?". | Her question ended with "ঠিক আছে?", so the echo filter treated the same answer as her own voice and dropped it. | A short yes/no answer is accepted while Nadia finishes a question. (T-11) | Fixed, tested |
 | TC-07 | After the name read-back, Nadia heard nothing; only "হ্যালো?" prompts played. | The TC-04 fix restarted Chrome's speech recognition after each stalled phrase; a restart that failed was ignored, so the microphone stayed deaf. | The recognizer is never stopped during a call; restarts retry until they work, and a watchdog restarts it if it ever stops. (T-13) | Fixed, tested |
+| TC-08 | The caller's "জি ঠিক আছে" appeared on screen, then vanished. Later the caller picked a time and Nadia booked at once, without reading the details back. | The echo exception was too narrow. Picking a slot was taken as the final yes. | Short yes/no answers are accepted whenever Nadia's latest sentence is a question. Booking is refused in code unless her previous sentence was a read-back with the caller's name or last phone digits. (T-14) | Fixed, tested |
 
 ## Notes
 

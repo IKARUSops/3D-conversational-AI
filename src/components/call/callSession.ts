@@ -340,7 +340,7 @@ export class CallSession {
     }
     if (agentBusy) {
       // A yes/no answer while the agent finishes its question is the caller, not echo (TC-06).
-      const answer = !this.turnStreaming && this.queue.isAskingLastQuestion() && isShortAnswer(text);
+      const answer = this.queue.isAskingLastQuestion() && isShortAnswer(text);
       const d = answer ? ({ accept: true, overlap: 0 } as const) : echoCheck(text, this.queue.echoTexts());
       if (!d.accept) {
         if (d.reason === "echo") this.echoFiltered++;

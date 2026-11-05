@@ -239,10 +239,12 @@ describe("T2.4 turn loop (mock LLM)", () => {
       reason: "দাঁতে ব্যথা",
       callerConfirmed: true,
     });
+    const mem0 = memoryStore(state);
+    mem0.turns.push({ speaker: "agent", text: N("শরীফ, শেষ চার ৩৮৬৬, চেক-আপ, বিকেল সাড়ে তিনটা, ঠিক আছে?"), startedMs: 1 });
     const { events, mem } = await turn(
       { turnSeq: 1, text: "হ্যাঁ ঠিক আছে" },
       { llms: [llm("google:mock", model)], services: svc },
-      memoryStore(state),
+      mem0,
     );
     expect(svc.bookAppointment).toHaveBeenCalledTimes(1);
     const said = events.filter((e) => e.type === "sentence").map((e) => e.text).join(" ");
@@ -268,5 +270,25 @@ describe("T2.4 turn loop (mock LLM)", () => {
     expect(said.join(" ")).not.toContain(N("সমস্যার"));
     expect(said.join(" ")).not.toContain(N("স্কেলিং"));
     expect(mem.turns.at(-1)?.text).not.toContain(N("সমস্যার"));
+  });
+
+  it("TC-08: booking right after a slot offer (no read-back) is refused", async () => {
+    const state: AgentState = {
+      ...createInitialAgentState(),
+      patient: { nameBn: "রফিকুল", nameConfirmed: true },
+      phone: { raw: "01712345601", e164: "+8801712345601", valid: true, confirmed: true, tries: 0 },
+    };
+    const svc = services();
+    const mem0 = memoryStore(state);
+    mem0.turns.push({ speaker: "agent", text: N("শনিবার সকাল দশটা বা এগারোটা খালি আছে। কোন সময়ে আসতে চান?"), startedMs: 1 });
+    const model = toolOnlyModel("book_appointment", {
+      slotStart: "2026-11-07T10:00:00+06:00",
+      doctorId: "doc-nusrat",
+      serviceCode: "scaling",
+      reason: "স্কেলিং",
+      callerConfirmed: true,
+    });
+    await turn({ turnSeq: 1, text: "প্রথম টাইমটা দেন" }, { llms: [llm("google:mock", model)], services: svc }, mem0);
+    expect(svc.bookAppointment).not.toHaveBeenCalled();
   });
 });

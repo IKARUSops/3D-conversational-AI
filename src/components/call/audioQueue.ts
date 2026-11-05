@@ -78,7 +78,7 @@ export class AudioQueue {
    * the caller may answer before the audio ends (TC-06).
    */
   isAskingLastQuestion(): boolean {
-    if (this.items.length > 0) return false;
+    // The latest sentence heard or being heard (queued, not yet played sentences do not count).
     const item = this.current?.item ?? this.lastPlayed;
     return !!item && /[?？]\s*$/.test(item.text.trim());
   }
