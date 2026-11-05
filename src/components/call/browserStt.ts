@@ -3,7 +3,13 @@
  * - Allowlist: desktop Chrome and Android Chrome only (Safari/Edge/others: server STT).
  * - continuous + interimResults, auto-restart on `end` while running (Chrome stops after ~60 s).
  * - End of turn: final results merged, emitted 700 ms after the last result.
+ * - Chrome sometimes never marks a result final (long digit strings, TC-04) or ends the session
+ *   with only interim text. Interim text with no new result for STALL_MS, or still pending when
+ *   the session ends, is promoted to final, so the caller's words are never lost.
  */
+
+/** Interim text unchanged this long counts as the end of the caller's turn. */
+export const STALL_MS = 1500;
 
 /** Minimal Web Speech types (not in every TS DOM lib). */
 interface SpeechAlt {
@@ -64,6 +70,9 @@ export interface BrowserSttOptions {
   onFinal: (text: string, confidence?: number) => void;
   onError: (kind: BrowserSttError) => void;
   debounceMs?: number;
+  stallMs?: number;
+  /** Tests only. */
+  ctor?: RecognitionCtor;
 }
 
 export class BrowserStt {
@@ -72,12 +81,14 @@ export class BrowserStt {
   private finalBuf = "";
   private confs: number[] = [];
   private timer: ReturnType<typeof setTimeout> | undefined;
+  private stallTimer: ReturnType<typeof setTimeout> | undefined;
+  private interimBuf = "";
   private restarts = 0;
 
   constructor(private opts: BrowserSttOptions) {}
 
   start(): boolean {
-    const Ctor = recognitionCtor();
+    const Ctor = this.opts.ctor ?? recognitionCtor();
     if (!Ctor) return false;
     this.running = true;
     const rec = new Ctor();
@@ -89,6 +100,8 @@ export class BrowserStt {
     rec.onerror = (e) => this.handleError(e.error);
     rec.onend = () => {
       if (!this.running) return;
+      // Session ended with words still interim: keep them as the caller's turn.
+      this.promoteInterim(false);
       // Chrome ends the session after silence or ~60 s: start again.
       setTimeout(() => {
         if (!this.running) return;
@@ -112,7 +125,9 @@ export class BrowserStt {
   stop(): void {
     this.running = false;
     clearTimeout(this.timer);
+    clearTimeout(this.stallTimer);
     this.finalBuf = "";
+    this.interimBuf = "";
     try {
       this.rec?.abort();
     } catch {
@@ -134,9 +149,33 @@ export class BrowserStt {
         gotFinal = true;
       } else interim += alt.transcript;
     }
+    this.interimBuf = interim.trim();
+    clearTimeout(this.stallTimer);
+    if (this.interimBuf) {
+      this.stallTimer = setTimeout(() => this.promoteInterim(true), this.opts.stallMs ?? STALL_MS);
+    }
     const shown = `${this.finalBuf} ${interim}`.trim();
     if (shown) this.opts.onInterim(shown);
     if (gotFinal || (this.finalBuf && interim)) this.schedule();
+  }
+
+  /**
+   * Treat pending interim text as final and flush it. With `reset`, the live session is aborted
+   * (it restarts on `end`) so Chrome cannot send the same words again as a late final result.
+   */
+  private promoteInterim(reset: boolean): void {
+    clearTimeout(this.stallTimer);
+    if (!this.interimBuf) return;
+    this.finalBuf = `${this.finalBuf} ${this.interimBuf}`.trim();
+    this.interimBuf = "";
+    if (reset) {
+      try {
+        this.rec?.abort();
+      } catch {
+        // ignore
+      }
+    }
+    this.schedule();
   }
 
   private schedule(): void {

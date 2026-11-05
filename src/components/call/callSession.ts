@@ -329,6 +329,8 @@ export class CallSession {
     this.clearSilence();
     const agentBusy = this.queue.isActive();
     if (!final) {
+      // Safety net: if the final never comes, the silence prompt still fires (TC-04).
+      if (!agentBusy) this.startSilence();
       if (!agentBusy) this.dispatch({ type: "INTERIM", text });
       else if (echoCheck(text, this.queue.echoTexts()).accept) {
         this.bargeIn();
@@ -502,7 +504,12 @@ export class CallSession {
   private startSilence(): void {
     this.clearSilence();
     this.silenceTimer = setTimeout(() => {
-      if (this.ending || this.turnStreaming || this.queue?.isActive()) return;
+      if (this.ending) return;
+      // Agent still talking or a turn still streaming: check again later instead of giving up.
+      if (this.turnStreaming || this.queue?.isActive()) {
+        this.startSilence();
+        return;
+      }
       void this.sendTurn({ event: "silence" });
     }, this.textOnly ? SILENCE_MS * 3 : SILENCE_MS);
   }
