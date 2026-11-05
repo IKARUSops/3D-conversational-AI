@@ -184,7 +184,7 @@ export function extractionPrompt(input: {
     "Rules: values confirmed by tools (below) are correct; prefer them over the transcript. Use null when unknown.",
     "Never invent a name, phone or date. Service codes: " + input.clinic.services.map((s) => `${s.code} (${s.nameEn})`).join(", ") + ".",
     "intent: book / reschedule / cancel / enquiry (questions only) / callback (wants staff to call) / other / unknown.",
-    "callbackCategory only when the caller needs a staff callback.",
+    "callbackCategory only when the caller needs a staff callback: emergency symptoms (bleeding that will not stop, face swelling with fever, trouble breathing) = urgent; a medical question (medicine, diagnosis) = medical; complaint, billing, wants a human = complaint / billing / human_request.",
     "",
     "TOOL-CONFIRMED STATE",
     summarizeState(input.agentState, input.clinic),

@@ -22,6 +22,7 @@ Built by **Sharif Mohammad Omar Faruq** for the StrategyByte AI Engineer task (N
 **Testing tips**
 
 - When Nadia asks for the phone number, **say each digit separately**, for example "শূন্য এক সাত এক দুই ...". Do not say "ডাবল ছয়" or "double six". Nadia understands "double", but single digits are the most reliable with browser speech recognition. Pause for a second after the last digit.
+- **If Nadia does not hear you, please do not end the call.** Sometimes Chrome's speech recognition misses a reply for a few seconds, and Nadia asks "হ্যালো, আপনি কি শুনতে পাচ্ছেন?". Wait a second and say your answer again: it recovers and the call continues. If it happens often, choose **OpenAI** or **ElevenLabs** in the speech dropdown of the call panel (server recognition, about 1 second slower), or type your reply.
 - Wait for Nadia to finish her question before you answer. You can also interrupt her on purpose: she stops at once.
 - No microphone, or testing with an automated agent? Use **"মাইক ছাড়া লিখে কথা বলুন"** (type instead of speaking) in the call panel.
 - Many test calls from one network: use the review link from the email (`?key=...`). It skips the limit of 30 calls per network per hour.
@@ -157,7 +158,7 @@ The full log of decisions, including each fix from real test calls, is in [`docs
 
 ## 6. Testing
 
-- **293 automated tests** (Vitest), including full-call flows on an in-memory Postgres (PGlite): book, reschedule, cancel, callbacks, double-booking, dates, Bangla numbers, phone checks, echo filter, fallbacks and status rules. Run `pnpm verify` (typecheck, lint, tests, build).
+- **294 automated tests** (Vitest), including full-call flows on an in-memory Postgres (PGlite): book, reschedule, cancel, callbacks, double-booking, dates, Bangla numbers, phone checks, echo filter, fallbacks and status rules. Run `pnpm verify` (typecheck, lint, tests, build).
 - **Live test calls.** Each problem found in real calls was fixed and turned into a test. See [`docs/TEST-CASES.md`](docs/TEST-CASES.md): for example, a repeated booking tool call that told the caller "slot taken" (now idempotent per call), a short "ঠিক আছে" dropped by the echo filter, Chrome giving no final speech result, and stacked questions (now one question per reply, enforced in code).
 
 ---
@@ -181,6 +182,7 @@ I can explain every part of the code, including what the agents wrote.
 
 - **Prototype.** The call-end screen shows a link to the portal so reviewers can jump to the record. A real clinic release would hide it from callers.
 - **Low credits.** See the credits note in section 1. When fallbacks are active, the voice changes and replies can be slower.
+- **Short deaf moments.** Chrome's built-in speech recognition sometimes misses a reply for a few seconds; Nadia then asks "হ্যালো?" and the call recovers when the caller speaks again. Several fixes are in (TC-04, TC-06, TC-07, TC-08); a streaming speech model of our own would remove this fully (future work).
 - **Browser STT is Chrome only.** Other browsers use server STT on short clips, which is slower.
 - **Headphones recommended.** On speakers, Nadia may hear her own voice; the echo filter reduces this but cannot remove it.
 - **End of turn.** A long pause inside a phone number can end the caller's turn early; Nadia asks for the rest and joins the parts.
@@ -190,6 +192,7 @@ I can explain every part of the code, including what the agents wrote.
 ## 9. Future work
 
 - A Bangladeshi phone number or WhatsApp calling, so callers use their phone and international call quality is no longer a problem.
+- A streaming Bangla speech model on the server instead of Chrome's recognizer, for steady listening on every browser.
 - Smarter end-of-turn detection (semantic, not only silence), especially for phone numbers.
 - SMS confirmation after booking.
 - Paid voice tier for a consistent voice and lower latency.

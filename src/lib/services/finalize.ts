@@ -26,6 +26,7 @@ import {
 } from "@/lib/agent/postcall";
 import { getDb } from "@/lib/db";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { createCallback } from "./callbacks";
 import { loadClinicContext } from "./clinic";
 import { logEvent } from "./events";
 import { buildExtractionRow } from "./extraction-row";
@@ -230,6 +231,25 @@ async function runOnce(
       update: {},
     });
     patientId = p.id;
+  }
+
+  // Step 7b: the caller needed staff (emergency, medical question) but the live agent forgot
+  // create_callback (TC-12): create it from the extraction so staff see it. Never throws.
+  if (ex?.callbackCategory) {
+    try {
+      const existing = await db.callback.count({ where: { callId } });
+      if (existing === 0) {
+        const urgent = ex.callbackCategory === "urgent";
+        const reason = (ex.reasonForVisit || ex.summaryBn || "Staff follow-up needed").slice(0, 300);
+        const r = await createCallback(
+          { callId, clinicId: call.clinicId, now: new Date(), state },
+          { category: ex.callbackCategory, reason, priority: urgent ? "urgent" : "normal" },
+        );
+        await logEvent(callId, "tool_result", { name: "create_callback", ok: r.ok, output: { auto: true, ...r } });
+      }
+    } catch (err) {
+      console.error(`[finalize] call ${callId} safety callback failed:`, err);
+    }
   }
 
   // Step 8: status from DB facts.

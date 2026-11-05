@@ -289,6 +289,26 @@ describe("finalizeCall with PGlite (T1.6, SRS 2 section 9)", () => {
     expect(res).toMatchObject({ status: "follow_up_needed" });
   });
 
+  it("TC-12: emergency without a live callback gets an urgent callback after the call", async () => {
+    const state = {
+      ...createInitialAgentState(),
+      patient: { nameBn: "ফারজানা ইয়াসমিন", nameConfirmed: true },
+      phone: { raw: "01512345604", e164: "+8801512345604", valid: true, confirmed: true, tries: 0 },
+    };
+    const id = await makeCall(state);
+    const res = await finalizeCall(id, {
+      deps: {
+        ...noSleep,
+        extract: async () => extraction({ intent: "callback", callbackCategory: "urgent" }),
+        downloadRecording: async () => null,
+      },
+    });
+    expect(res).toMatchObject({ status: "follow_up_needed" });
+    const cb = await t.prisma.callback.findFirstOrThrow({ where: { callId: id } });
+    expect(cb.category).toBe("urgent");
+    expect(cb.priority).toBe("urgent");
+  });
+
   it("silence with no caller speech -> incomplete (AT-9)", async () => {
     const id = await makeCall(createInitialAgentState(), { callerTurns: 0, endReason: "silence" });
     expect(

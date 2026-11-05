@@ -1,8 +1,8 @@
 # Live test cases
 
-Eleven real test calls made on 4 and 5 November 2026, before the demo data was recorded. Each one found a problem; each problem was traced in the code, fixed, and covered by an automated test. Reviewers can open these calls in the portal (they are the earliest calls in the list) instead of reading transcripts here.
+Twelve real test calls made on 4 and 5 November 2026, before the demo data was recorded. Each one found a problem; each problem was traced in the code, fixed, and covered by an automated test. Reviewers can open these calls in the portal (they are the earliest calls in the list) instead of reading transcripts here.
 
-All tests run with `pnpm test` (293 passing). Decision ids (T-xx) point to [`DECISIONS.md`](DECISIONS.md).
+All tests run with `pnpm test` (294 passing). Decision ids (T-xx) point to [`DECISIONS.md`](DECISIONS.md).
 
 | Case | What happened | Cause | Fix | Status |
 |---|---|---|---|---|
@@ -17,6 +17,7 @@ All tests run with `pnpm test` (293 passing). Decision ids (T-xx) point to [`DEC
 | TC-09 | "নেক্সট মানডে বিকেল" was taken as tomorrow (Friday). Later Nadia read back 3:00, a time she never offered, the caller said yes, and 4:00 was booked. | The date parser did not know English weekday names in Bangla script. The booking did not check that the read-back matched the slot. | English weekday words in Bangla script are parsed. Booking is refused unless the read-back says the exact time being booked. Phone numbers said in two parts are joined in code; a lone "।" is ignored. (T-15) | Fixed, tested |
 | TC-10 | Asked for the doctor's home address and personal number, Nadia refused both and gave the clinic address (correct). Then she said goodbye but the call stayed open, and "হ্যালো?" prompts followed. | The LLM said goodbye without calling the end-call tool. | A reply with goodbye words and no question now ends the call in code. (T-16) | Fixed, tested |
 | TC-11 | Four prank questions (cricket, marriage, a song, the longest river) got polite, short redirects, but the call did not end after three and was saved as Incomplete, not Spam. | The LLM never called the off-topic counter tool. | The prompt requires the counter every time. After the call, the extraction also counts off-topic turns; 3 or more with no clinic information gives Spam. (T-17) | Fixed, tested |
+| TC-12 | Emergency (bleeding after an extraction, swelling): Nadia correctly said to go to a hospital emergency department or call 999, but no urgent callback was made and the status was Incomplete. She also missed the caller twice for a few seconds. | The LLM skipped the callback tool. Chrome's recognizer missed replies briefly. | The prompt requires the urgent callback; after the call, a missing callback is created from the extraction, so the status is Follow-up needed. Reviewers are told to keep talking if Nadia briefly does not hear them. (T-18) | Fixed, tested; deaf moments documented |
 
 ## Notes
 
