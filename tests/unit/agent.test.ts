@@ -249,3 +249,38 @@ describe("T2.4 post-call extraction merge", () => {
 
 // Type check helper so TurnRequestParsed stays in sync with tests below.
 export type _T = TurnRequestParsed;
+
+describe("readBackHasTime (TC-09: read back 3:00, booked 4:00)", async () => {
+  const { readBackHasTime } = await import("@/lib/agent/tools");
+  const N = (s: string) => s.normalize("NFC");
+  const FOUR = "2026-11-09T16:00:00+06:00";
+  const HALF4 = "2026-11-09T16:30:00+06:00";
+  it("accepts the right time in Bangla words or digits", () => {
+    expect(readBackHasTime(N("সোমবার, নয় নভেম্বর, বিকেল চারটায় ডা. তানভীর, ঠিক আছে?"), FOUR)).toBe(true);
+    expect(readBackHasTime(N("সোমবার বিকেল ৪টায়, ঠিক আছে?"), FOUR)).toBe(true);
+    expect(readBackHasTime(N("সোমবার, বিকেল সাড়ে চারটা, ঠিক আছে?"), HALF4)).toBe(true);
+  });
+  it("rejects a different time", () => {
+    expect(readBackHasTime(N("সোমবার, নয় নভেম্বর, বিকেল তিনটায় ডা. তানভীর, ঠিক আছে?"), FOUR)).toBe(false);
+    expect(readBackHasTime(N("সোমবার, বিকেল সাড়ে চারটা, ঠিক আছে?"), FOUR)).toBe(false);
+  });
+  it("English read-back needs the hour", () => {
+    expect(readBackHasTime("Monday 9 November at 4 PM with Dr. Tanvir, is that right?", FOUR)).toBe(true);
+    expect(readBackHasTime("Monday 9 November at 3 PM with Dr. Tanvir, is that right?", FOUR)).toBe(false);
+  });
+});
+
+describe("phone said in two parts (TC-09)", () => {
+  it("joins a short first part with the rest", () => {
+    let s = applyPatientDetails(createInitialAgentState(), { phoneRaw: "01812" }).state;
+    expect(s.phone?.valid).toBe(false);
+    const r = applyPatientDetails(s, { phoneRaw: "345602" });
+    s = r.state;
+    expect(s.phone?.valid).toBe(true);
+    expect(s.phone?.raw).toBe("01812345602");
+  });
+  it("a full new number replaces a short one", () => {
+    const s = applyPatientDetails(createInitialAgentState(), { phoneRaw: "0101" }).state;
+    expect(applyPatientDetails(s, { phoneRaw: "01812345602" }).state.phone?.raw).toBe("01812345602");
+  });
+});

@@ -25,6 +25,8 @@ import {
 import * as services from "@/lib/services";
 import type { ClinicContext, ToolContext } from "@/lib/services";
 import { resolve as resolveDatetime } from "@/lib/text/datetime-bn";
+import { spokenTimeBn } from "@/lib/services/spoken-bn";
+import { toLocal } from "@/lib/services/time";
 import { localClinicInfo } from "./clinic-knowledge";
 import { applyPatientDetails } from "./state";
 
@@ -103,6 +105,34 @@ export function wasReadBack(lastAgentText: string | undefined, state: AgentState
   if (name && t.includes(name)) return true;
   if (nameEn && t.toLowerCase().includes(nameEn)) return true;
   return /শেষ|last (4|four)/i.test(t);
+}
+
+const BN_DIGITS = "০১২৩৪৫৬৭৮৯";
+
+/**
+ * Does the read-back say the time of the slot being booked? (TC-09: the read-back said
+ * "বিকেল তিনটায়", the caller said yes, and 4:00 was booked.) Bangla read-backs only; an
+ * English read-back must contain the hour as a number ("4:00", "4 PM").
+ */
+export function readBackHasTime(lastAgentText: string | undefined, slotStartIso: string): boolean {
+  const t = (lastAgentText ?? "").normalize("NFC");
+  const d = new Date(slotStartIso);
+  if (Number.isNaN(d.getTime())) return false;
+  const minutes = toLocal(d).minutes;
+  const h12 = ((Math.floor(minutes / 60) + 11) % 12) + 1;
+  if (!/\p{Script=Bengali}/u.test(t)) {
+    const mm = String(minutes % 60).padStart(2, "0");
+    return new RegExp(`\\b${h12}(:${mm}|\\s*(am|pm|a\\.m|p\\.m|o'clock))`, "i").test(t) || (minutes % 60 === 0 && new RegExp(`\\b${h12}\\b`).test(t));
+  }
+  // "বিকেল চারটা" -> clock words "চারটা" -> stem "চার"; half and quarter words stay ("সাড়ে চার").
+  const clock = spokenTimeBn(minutes).normalize("NFC").split(" ").slice(1).join(" ").replace(/টা$/u, "");
+  const bnNum = String(h12).split("").map((c) => BN_DIGITS[Number(c)]).join("");
+  const plainHour = minutes % 60 === 0;
+  const guard = plainHour ? "(?<!সাড়ে |সোয়া |পৌনে )" : "";
+  // Normalise the pattern too: ড় and য় change form under NFC.
+  const words = new RegExp(`${guard}${clock}(টা|টায়|টার|\\s|,|।|$)`.normalize("NFC"), "u").test(t);
+  const digits = plainHour && new RegExp(`${guard}(${bnNum}|${h12})\\s*টা`.normalize("NFC"), "u").test(t);
+  return words || digits;
 }
 
 /** Mark a present name and valid phone as confirmed (after a yes to the full read-back). */
@@ -204,11 +234,14 @@ export function createAgentTools(rt: ToolRuntime, tracker: ToolTracker): ToolSet
       execute: wrap("book_appointment", async (input) => {
         // The final read-back says the name and phone too, so the caller's yes to it confirms them
         // (TC-03: stacked questions left them unconfirmed and booking looped).
-        if (rt.lastAgentText !== undefined && !wasReadBack(rt.lastAgentText, rt.holder.state)) {
+        if (
+          rt.lastAgentText !== undefined &&
+          (!wasReadBack(rt.lastAgentText, rt.holder.state) || !readBackHasTime(rt.lastAgentText, input.slotStart))
+        ) {
           return {
             ok: false as const,
             error: "need_confirmation" as const,
-            hint: "Do not book yet. In one sentence read back the name, the last 4 phone digits, service, doctor, day, date and time, ask \"ঠিক আছে?\" and wait for the caller's yes.",
+            hint: "Do not book yet. The read-back must say exactly this slot's time (its spokenBn from check_availability). If the caller wants a time that was not offered, call check_availability for that time first. Then in one sentence read back the name, the last 4 phone digits, service, doctor, day, date and time, ask \"ঠিক আছে?\" and wait for the caller's yes.",
           };
         }
         if (input.callerConfirmed === true) set(confirmIdentity(rt.holder.state));

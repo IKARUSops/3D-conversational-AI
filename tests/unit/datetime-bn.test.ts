@@ -135,3 +135,14 @@ describe("upcomingDaysBn (TC-05: dates come from code)", async () => {
     expect(lines[2]).toContain("সাত নভেম্বর".normalize("NFC"));
   });
 });
+
+describe("English weekday words in Bangla script (TC-09)", () => {
+  // Thursday 5 November 2026, 19:00 Dhaka.
+  const THU = new Date("2026-11-05T13:00:00Z");
+  it("নেক্সট মানডে বিকেল is Monday 9 November, not tomorrow", () => {
+    expect(resolve("নেক্সট মানডে বিকেল".normalize("NFC"), THU)).toMatchObject({ isoDate: "2026-11-09", partOfDay: "afternoon" });
+  });
+  it("স্যাটারডে সকালে is Saturday 7 November", () => {
+    expect(resolve("স্যাটারডে সকালে".normalize("NFC"), THU)).toMatchObject({ isoDate: "2026-11-07", partOfDay: "morning" });
+  });
+});

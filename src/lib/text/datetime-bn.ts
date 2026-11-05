@@ -116,6 +116,16 @@ const WEEKDAY_BN_STEMS: Array<[number, string[]]> = [
   [5, nl(["শুক্র"])],
   [6, nl(["শনি"])],
 ];
+/** English weekday names written in Bangla script by speech recognition ("নেক্সট মানডে", TC-09). */
+const WEEKDAY_TRANSLIT: Array<[number, string[]]> = [
+  [0, nl(["সানডে", "সান্ডে"])],
+  [1, nl(["মানডে", "মান্ডে", "মনডে", "মন্ডে"])],
+  [2, nl(["টিউসডে", "টুসডে", "টিউজডে", "টুজডে"])],
+  [3, nl(["ওয়েনসডে", "ওয়েডনেসডে", "ওয়েন্সডে", "ওয়েনেসডে"])],
+  [4, nl(["থার্সডে", "থার্জডে", "থাসডে"])],
+  [5, nl(["ফ্রাইডে", "ফ্রাইডেতে"])],
+  [6, nl(["স্যাটারডে", "সাটারডে", "স্যাটার্ডে", "সেটারডে"])],
+];
 const WEEKDAY_EN: Array<[number, string[]]> = [
   [0, ["sunday", "sun"]],
   [1, ["monday", "mon"]],
@@ -126,7 +136,7 @@ const WEEKDAY_EN: Array<[number, string[]]> = [
   [6, ["saturday", "sat"]],
 ];
 
-const TODAY = nl(["আজ", "আজকে", "আজকেই", "আজই", "আজকের", "today", "tonight"]);
+const TODAY = nl(["আজ", "আজকে", "আজকেই", "আজই", "আজকের", "টুডে", "today", "tonight"]);
 const TOMORROW = nl([
   "কাল",
   "কালকে",
@@ -137,13 +147,15 @@ const TOMORROW = nl([
   "আগামীকালকে",
   "আগামীকালের",
   "tomorrow",
+  "টুমরো",
+  "টুমোরো",
   "tmrw",
   "tomorow",
 ]);
 const DAY_AFTER = nl(["পরশু", "পরশুদিন", "পরশুকে"]);
 const YESTERDAY = nl(["গতকাল", "গতকালকে", "yesterday"]);
 const LAST = nl(["গত", "last", "previous"]);
-const NEXT = nl(["আগামী", "সামনের", "সামনে", "next", "coming", "upcoming"]);
+const NEXT = nl(["আগামী", "সামনের", "সামনে", "নেক্সট", "নেক্সটে", "নেক্সট্", "next", "coming", "upcoming"]);
 const THIS = nl(["এই", "this"]);
 /** STT often writes "আমি রবিবার" for "আগামী রবিবার". */
 const MISHEARD_NEXT = nl(["আমি", "আমী"]);
@@ -226,6 +238,10 @@ function weekdayOf(token: string): number | null {
     for (const stem of stems) {
       if (token === stem || token.startsWith(`${stem}${n("বার")}`)) return wd;
     }
+  }
+  for (const [wd, words] of WEEKDAY_TRANSLIT) {
+    // Allow Bangla endings: মানডেতে, মানডের.
+    if (words.some((w) => token === w || token.startsWith(w))) return wd;
   }
   const t = token.replace(/'s$/, "").replace(/s$/, "");
   for (const [wd, names] of WEEKDAY_EN) {

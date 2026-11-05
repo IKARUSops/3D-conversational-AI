@@ -325,6 +325,8 @@ export class CallSession {
 
   private onCallerText(text: string, final: boolean, confidence?: number): void {
     if (this.ending || !this.queue) return;
+    // Only punctuation ("।") is noise from speech recognition, not a turn (TC-09).
+    if (!/[\p{L}\p{N}]/u.test(text)) return;
     this.lastInterimAt = Date.now();
     this.clearSilence();
     const agentBusy = this.queue.isActive();

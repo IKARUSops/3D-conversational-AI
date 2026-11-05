@@ -1,8 +1,8 @@
 # Live test cases
 
-Eight real test calls made on 4 and 5 November 2026, before the demo data was recorded. Each one found a problem; each problem was traced in the code, fixed, and covered by an automated test. Reviewers can open these calls in the portal (they are the earliest calls in the list) instead of reading transcripts here.
+Nine real test calls made on 4 and 5 November 2026, before the demo data was recorded. Each one found a problem; each problem was traced in the code, fixed, and covered by an automated test. Reviewers can open these calls in the portal (they are the earliest calls in the list) instead of reading transcripts here.
 
-All tests run with `pnpm test` (282 passing). Decision ids (T-xx) point to [`DECISIONS.md`](DECISIONS.md).
+All tests run with `pnpm test` (289 passing). Decision ids (T-xx) point to [`DECISIONS.md`](DECISIONS.md).
 
 | Case | What happened | Cause | Fix | Status |
 |---|---|---|---|---|
@@ -14,9 +14,11 @@ All tests run with `pnpm test` (282 passing). Decision ids (T-xx) point to [`DEC
 | TC-06 | First call on Vercel: the caller said "ঠিক আছে" several times and Nadia kept asking "শুনতে পাচ্ছেন?". | Her question ended with "ঠিক আছে?", so the echo filter treated the same answer as her own voice and dropped it. | A short yes/no answer is accepted while Nadia finishes a question. (T-11) | Fixed, tested |
 | TC-07 | After the name read-back, Nadia heard nothing; only "হ্যালো?" prompts played. | The TC-04 fix restarted Chrome's speech recognition after each stalled phrase; a restart that failed was ignored, so the microphone stayed deaf. | The recognizer is never stopped during a call; restarts retry until they work, and a watchdog restarts it if it ever stops. (T-13) | Fixed, tested |
 | TC-08 | The caller's "জি ঠিক আছে" appeared on screen, then vanished. Later the caller picked a time and Nadia booked at once, without reading the details back. | The echo exception was too narrow. Picking a slot was taken as the final yes. | Short yes/no answers are accepted whenever Nadia's latest sentence is a question. Booking is refused in code unless her previous sentence was a read-back with the caller's name or last phone digits. (T-14) | Fixed, tested |
+| TC-09 | "নেক্সট মানডে বিকেল" was taken as tomorrow (Friday). Later Nadia read back 3:00, a time she never offered, the caller said yes, and 4:00 was booked. | The date parser did not know English weekday names in Bangla script. The booking did not check that the read-back matched the slot. | English weekday words in Bangla script are parsed. Booking is refused unless the read-back says the exact time being booked. Phone numbers said in two parts are joined in code; a lone "।" is ignored. (T-15) | Fixed, tested |
 
 ## Notes
 
 - **Prototype behaviour (kept on purpose).** The call-end screen links to the portal, so reviewers can jump from a call to its record. A real clinic release would hide this link from callers. (T-05)
 - **TC-01 in the portal** shows the status "Enquiry" although the 10:00 appointment exists. That record was made before the fix and is kept as evidence.
+- **TC-09 in the portal** is booked at 4:00 PM although the read-back said 3:00. It was made before the fix and is kept as evidence.
 - **Testing tip.** Say the phone number one digit at a time ("শূন্য এক আট ছয়..."), not "double six" or "ডাবল ছয়", and pause after the last digit.

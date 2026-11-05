@@ -61,8 +61,14 @@ export function applyPatientDetails(
 
   let phoneSpoken: string | undefined;
   if (input.phoneRaw !== undefined) {
-    const check = validateBdMobile(input.phoneRaw);
+    let check = validateBdMobile(input.phoneRaw);
     const prev = next.phone;
+    // Number said in two parts ("শূন্য এক" ... "আট ছয় ..."): join it with the earlier short part
+    // when only the joined digits make a valid number (TC-09).
+    if (!check.valid && prev && !prev.valid && prev.raw && prev.raw.length < 11) {
+      const joined = validateBdMobile(`${prev.raw}${check.digits}`);
+      if (joined.valid) check = joined;
+    }
     const same = prev && prev.raw === check.digits;
     if (check.valid) {
       next.phone = {
