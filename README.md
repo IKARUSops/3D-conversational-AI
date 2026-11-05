@@ -11,9 +11,33 @@ Built by **Sharif Mohammad Omar Faruq** for the StrategyByte AI Engineer task (N
 | Repository | https://github.com/IKARUSops/3D-conversational-AI |
 | Video overview (3 min) and portal logins | in the submission email |
 
+![Landing page with Byte, the 3D mascot, and the "Talk to our Bangla caller" button](docs/screenshots/audit-landing-1440.png)
+
 ---
 
-## 1. How to review (5 minutes)
+## 1. What Nadia can do
+
+Nadia is the receptionist voice. Every action that changes data is double-checked, and the checks are in code, not only in the AI's instructions.
+
+| Situation | What Nadia does | Safety checks | Portal status |
+|---|---|---|---|
+| **Book** an appointment | Takes name, phone, reason, day and time; offers only free slots; books | Name read back; phone read back digit by digit; a full read-back and a clear "yes" before booking; the code refuses to book if the read-back did not say the exact time; the database blocks double bookings | Booked |
+| **Reschedule** | Finds the caller's appointment by their confirmed phone, offers new free slots, moves it | Phone confirmed first; the found appointment is read back and confirmed; the new time is confirmed; history keeps both times | Rescheduled |
+| **Cancel** | Finds the appointment by phone and cancels it | Phone confirmed; appointment read back; a clear "yes" before cancelling; callers can only see and change appointments of their own number | Cancelled |
+| **Clinic information** | Fees ("root canal from 8,000 taka"), opening hours, Friday closing, address and directions, doctors, services, how to prepare | Answers only from the clinic data in the database; never invents a fee, time or address | Enquiry |
+| **Prank, scam or off-topic calls** | One short polite line, then back to the clinic; ends the call after 3 off-topic turns | Never shares other patients' data or a doctor's home address or personal number; a post-call check marks the call as spam even if the live AI missed it | Spam |
+| **Medical questions** | Does not give advice or medicine names; offers a staff or dentist callback | Callback saved with name and phone; created after the call if the live AI forgot | Follow-up needed |
+| **Emergency** (bleeding that will not stop, swelling with fever) | Tells the caller to go to the nearest hospital emergency department or call 999 now, then takes an urgent callback | Urgent priority; created after the call if the live AI forgot | Follow-up needed |
+| **Complaint, billing, wants a person** | Takes name and phone, promises a staff call back in opening hours | Callback saved with its category | Follow-up needed |
+| **Silence or a caller who leaves** | Asks "হ্যালো, শুনতে পাচ্ছেন?" twice, then ends politely | Unfinished calls are still saved | Incomplete |
+
+She asks **one question at a time** (enforced in code), speaks only **Bangla** (she understands English and mixed speech), and ends every call with a one-sentence summary of what was agreed.
+
+---
+
+## 2. How to review (5 minutes)
+
+<img src="docs/screenshots/audit-callpanel-390.png" alt="Call panel on a phone" width="260" align="right">
 
 1. Open the landing page on a computer (Chrome or Edge work best), ideally with **headphones**.
 2. Press **"বাংলা কলারের সাথে কথা বলুন"** (Talk to our Bangla caller), allow the microphone, and talk to Nadia.
@@ -50,7 +74,7 @@ Each problem got a fix and a test, but a recognizer we do not control cannot be 
 
 ---
 
-## 2. What the task asked, and where it is
+## 3. What the task asked, and where it is
 
 | Requirement (brief) | Where to see it |
 |---|---|
@@ -69,13 +93,28 @@ Each problem got a fix and a test, but a recognizer we do not control cannot be 
 | Per-call view: extracted fields, transcript with speakers and times, status | Call detail: fields with confidence, live and re-transcribed transcript, English translation, tool timeline, recording |
 | Status: booked, enquiry, follow-up needed, incomplete, failed | Plus rescheduled, cancelled and spam. Set by rules in code after the call |
 | Login with reviewer details | Supabase Auth; logins in the email |
-| Structured data model (plus) | 16 tables, see section 5 and the **Data model** page in the portal |
+| Structured data model (plus) | 16 tables, see section 6 and the **Data model** page in the portal |
 | Secrets handled correctly | No keys in git; server-only modules; BYOK keys encrypted with AES-256-GCM |
 | Keep everything live | Supabase keep-alive: UptimeRobot, a GitHub Action every 6 hours and a daily Vercel cron |
 
 ---
 
-## 3. Architecture
+## 4. Architecture
+
+### Why speech-to-text + LLM + text-to-speech, and not one speech-to-speech model
+
+Cost was not the main reason. A speech-to-speech model hears audio and answers with audio in one step; a pipeline does it in three steps (speech to text, the language model thinks and acts, text to speech). I chose the pipeline because:
+
+1. **Control and safety.** Between the steps there is text, so code can check it. Dates, phone numbers, free slots, read-backs before booking and one question per reply are all checked or enforced in code. A speech-to-speech model gives no such point to step in.
+2. **Tools and data.** The language model calls tools that read and write the database (book, reschedule, cancel, callbacks) with structured inputs. This is mature in text models and much weaker in speech-to-speech models.
+3. **Best Bangla in each step.** I could test and pick the best speech recognition, the best brain and the best Bangladeshi-sounding voice separately. Speech-to-speech models offer few voices and their Bangla often sounds Indian, not Bangladeshi.
+4. **Smarter conversation.** The brain can be any strong model, swapped by one setting. In the group interview we discussed how a speech-to-speech agent was stuck with one model and only repeated the question when asked to clarify; with a pipeline, intelligence is not tied to the voice.
+5. **Reliability.** Each step has its own fallback chain (OpenAI, Azure, ElevenLabs, and so on). If one provider fails, the call goes on.
+6. **A full record.** Every turn is text, so the portal can show the transcript, the extracted fields, every tool call and the status. Clinics can also bring their own keys per provider.
+
+The trade-offs: a little more latency (kept low by streaming the reply sentence by sentence, first words in about 1 second), turn-taking must be built by hand (voice activity detection, interruptions, an echo filter), and some tone of voice is lost between steps.
+
+### How the parts connect
 
 ```mermaid
 flowchart LR
@@ -122,7 +161,7 @@ flowchart LR
 
 ---
 
-## 4. Main decisions and trade-offs
+## 5. Main decisions and trade-offs
 
 | Decision | Why | Trade-off |
 |---|---|---|
@@ -140,9 +179,11 @@ The full log of decisions, including each fix from real test calls, is in [`docs
 
 ---
 
-## 5. Data model
+## 6. Data model
 
 16 tables in Postgres (Prisma schema: [`prisma/schema.prisma`](prisma/schema.prisma)). The portal's **Data model** page draws them with their relations.
+
+![Data model page in the portal](docs/screenshots/data-model-er-light.png)
 
 | Table | Holds |
 |---|---|
@@ -166,18 +207,18 @@ The full log of decisions, including each fix from real test calls, is in [`docs
 
 ---
 
-## 6. Testing
+## 7. Testing
 
 - **294 automated tests** (Vitest), including full-call flows on an in-memory Postgres (PGlite): book, reschedule, cancel, callbacks, double-booking, dates, Bangla numbers, phone checks, echo filter, fallbacks and status rules. Run `pnpm verify` (typecheck, lint, tests, build).
 - **Live test calls.** Each problem found in real calls was fixed and turned into a test. See [`docs/TEST-CASES.md`](docs/TEST-CASES.md): for example, a repeated booking tool call that told the caller "slot taken" (now idempotent per call), a short "ঠিক আছে" dropped by the echo filter, Chrome giving no final speech result, and stacked questions (now one question per reply, enforced in code).
 
 ---
 
-## 7. How I used AI
+## 8. How I used AI
 
 I used Claude (Anthropic) as a pair engineer and Claude Code agents for parallel work. My part was the product and engineering decisions, and checking every result:
 
-- **Research and tests before code.** I tested Bangla STT and TTS providers in a Colab notebook and a browser test page with my own voice, and picked providers from the results (section 4).
+- **Research and tests before code.** I tested Bangla STT and TTS providers in a Colab notebook and a browser test page with my own voice, and picked providers from the results (section 5).
 - **Specs first.** I wrote three requirement documents with AI help (product, engineering, 3D mascot) and used them to brief the coding agents ([`docs/`](docs)).
 - **Parallel agents.** Separate agents built services, the agent loop, the call UI and the portal against shared zod contracts that I owned; I integrated and reviewed.
 - **3D mascot.** Byte was modelled, rigged and animated in Blender through the Blender MCP, then exported as a compressed GLB.
@@ -188,10 +229,10 @@ I can explain every part of the code, including what the agents wrote.
 
 ---
 
-## 8. Known limitations (honest list)
+## 9. Known limitations (honest list)
 
 - **Prototype.** The call-end screen shows a link to the portal so reviewers can jump to the record. A real clinic release would hide it from callers.
-- **Low credits.** See the credits note in section 1. When fallbacks are active, the voice changes and replies can be slower.
+- **Low credits.** See the credits note in section 2. When fallbacks are active, the voice changes and replies can be slower.
 - **Server speech-to-text is a little slower** than a streaming model (about 0.5 to 1 second per reply), and it depends on provider credits. If OpenAI fails, Azure takes over automatically, then ElevenLabs, then Chrome.
 - **Bangla only.** Nadia answers in Bangla even when the caller speaks English (a product decision, not a bug).
 - **Headphones recommended.** On speakers, Nadia may hear her own voice; the echo filter reduces this but cannot remove it.
@@ -199,7 +240,7 @@ I can explain every part of the code, including what the agents wrote.
 - **Free tiers** have daily limits; a daily cap of 300 calls protects the demo.
 - **Recording** has the caller's microphone only, not Nadia's voice.
 
-## 9. Future work
+## 10. Future work
 
 - A Bangladeshi phone number or WhatsApp calling, so callers use their phone and international call quality is no longer a problem.
 - A streaming Bangla speech model on the server instead of Chrome's recognizer, for steady listening on every browser.
@@ -209,7 +250,7 @@ I can explain every part of the code, including what the agents wrote.
 
 ---
 
-## 10. Run it yourself
+## 11. Run it yourself
 
 Requirements: Node 22, pnpm 10, a Supabase project (Singapore) and at least one LLM key.
 
