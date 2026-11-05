@@ -46,7 +46,7 @@ Built by **Sharif Mohammad Omar Faruq** for the StrategyByte AI Engineer task (N
 
 Each problem got a fix and a test, but a recognizer we do not control cannot be made fully reliable. So the default is now server speech-to-text on short clips cut by voice activity: **OpenAI first, then Azure, then ElevenLabs Scribe**, and Chrome only if the server fails. OpenAI is first because it is on a paid plan here, so it does not run out of free credits during the review. A clip is always sent when the caller stops speaking, so a reply is never lost silently. The cost is about 0.5 to 1 second more per reply; to keep interruptions quick, Nadia stops talking as soon as the microphone hears the caller for about 0.6 seconds, before the words come back. See [`docs/TEST-CASES.md`](docs/TEST-CASES.md).
 
-**Credits note.** Credits are low right now. Everything except the OpenAI language model runs on free tiers. Each service has a fallback, so the system keeps working, but quality and speed drop when a fallback is active (for example, a different voice, or slower replies).
+**Credits note.** Credits are low right now. Everything except OpenAI runs on free tiers: Gemini (the backup language model), ElevenLabs, Azure, Supabase and Vercel. OpenAI is the paid account: it is the main language model and the first speech recognizer, and the backup voice. Each service has a fallback, so the system keeps working, but quality and speed drop when a fallback is active (for example, a different voice, or slower replies).
 
 ---
 
@@ -94,7 +94,7 @@ flowchart LR
     PORTAL[Portal pages]
   end
   subgraph Providers
-    LLM[Gemini Flash<br/>fallback GPT-4.1 mini]
+    LLM[OpenAI GPT-4.1 mini<br/>fallback Gemini Flash]
     VOICE[ElevenLabs, OpenAI, Azure voices]
     ASR[OpenAI, Azure, ElevenLabs Scribe STT]
   end
@@ -129,7 +129,7 @@ flowchart LR
 | STT, LLM and TTS pipeline instead of one speech-to-speech model | We can pick the best Bangla model for each step, swap providers, and give the LLM tools and rules | More moving parts; latency kept low by streaming sentences |
 | Live speech-to-text on the server: OpenAI first, then Azure, then ElevenLabs Scribe, and Chrome's built-in recognizer only as the last fallback | Reliable on every browser: the app detects each phrase by voice activity and sends the clip, so a reply is never silently lost. OpenAI is first because it is the paid account here (no free-credit limit during review); ElevenLabs Scribe was very accurate in tests but its free credits are small | About 0.5 to 1 second slower per reply than Chrome's recognizer, and it uses paid or free-tier credits (see the speech note below) |
 | Nadia always replies in Bangla | The product is a Bangla receptionist; one language keeps the voice, the prompt and the tests simple | English-only callers are understood but answered in Bangla |
-| Gemini Flash as the main LLM, GPT-4.1 mini as fallback | Fast first token, good Bangla, structured tool calls | Free tier limits; fallback costs money |
+| OpenAI GPT-4.1 mini as the main LLM, Gemini Flash as fallback | Reliable tool calls and rule following in my test calls, fast first token, good Bangla, on the paid account so it does not hit free-tier limits during review | Costs money per call; Gemini (free tier) takes over if OpenAI fails |
 | ElevenLabs voice first, then OpenAI, then Azure | ElevenLabs sounded most natural; Azure Bangla sounded robotic in tests | Free ElevenLabs quota is small; library voices need a paid plan, so a built-in voice is used |
 | Supabase (Postgres, Auth, Storage) in Singapore | Relational data fits calls, patients and appointments; close to Dhaka | Free projects pause after 7 days idle, so three keep-alive layers |
 | One Vercel project, two domains | Landing and portal links as asked, one codebase | The landing domain also serves `/portal` |
