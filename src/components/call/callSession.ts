@@ -26,7 +26,7 @@ import { readSse } from "@/lib/agent/sse";
 import { AudioQueue, type QueueItem } from "./audioQueue";
 import { BrowserStt, browserSttAvailable, isAndroid } from "./browserStt";
 import type { CallAction, CallErrorKind } from "./callState";
-import { echoCheck } from "./echoFilter";
+import { echoCheck, isShortAnswer } from "./echoFilter";
 import { CallRecorder, uploadRecording } from "./recorder";
 import { VadStt } from "./vadStt";
 
@@ -339,7 +339,9 @@ export class CallSession {
       return;
     }
     if (agentBusy) {
-      const d = echoCheck(text, this.queue.echoTexts());
+      // A yes/no answer while the agent finishes its question is the caller, not echo (TC-06).
+      const answer = !this.turnStreaming && this.queue.isAskingLastQuestion() && isShortAnswer(text);
+      const d = answer ? ({ accept: true, overlap: 0 } as const) : echoCheck(text, this.queue.echoTexts());
       if (!d.accept) {
         if (d.reason === "echo") this.echoFiltered++;
         this.dispatch({ type: "INTERIM", text: "" });

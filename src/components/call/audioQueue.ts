@@ -73,6 +73,16 @@ export class AudioQueue {
     return this.current !== null || this.items.length > 0;
   }
 
+  /**
+   * true when the agent is on (or just finished) its last queued sentence and it is a question:
+   * the caller may answer before the audio ends (TC-06).
+   */
+  isAskingLastQuestion(): boolean {
+    if (this.items.length > 0) return false;
+    const item = this.current?.item ?? this.lastPlayed;
+    return !!item && /[?？]\s*$/.test(item.text.trim());
+  }
+
   isPlaying(): boolean {
     return this.current !== null;
   }

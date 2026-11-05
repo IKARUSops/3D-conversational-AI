@@ -28,3 +28,19 @@ export function echoCheck(callerText: string, agentTexts: string[]): EchoDecisio
   const overlap = hits / words.length;
   return overlap >= ECHO_MAX_OVERLAP ? { accept: false, reason: "echo", overlap } : { accept: true, overlap };
 }
+
+/**
+ * Short answers to a yes/no question ("ঠিক আছে", "হ্যাঁ", "জি", "না", "yes"). They often repeat
+ * the agent's own words ("..., ঠিক আছে?"), so the echo check would drop them (TC-06).
+ */
+const ANSWER_WORDS = new Set(
+  [
+    "হ্যাঁ", "হ্যা", "হাঁ", "জি", "জ্বি", "জী", "ঠিক", "আছে", "না", "নাহ", "আচ্ছা", "ওকে", "ঠিকাছে",
+    "সঠিক", "ভুল", "করেন", "করুন", "দেন", "বুক", "yes", "yeah", "ok", "okay", "no", "right", "correct", "sure",
+  ].map((w) => w.normalize("NFC").toLowerCase()),
+);
+
+export function isShortAnswer(callerText: string): boolean {
+  const words = tokens(callerText);
+  return words.length > 0 && words.length <= 4 && words.every((w) => ANSWER_WORDS.has(w));
+}

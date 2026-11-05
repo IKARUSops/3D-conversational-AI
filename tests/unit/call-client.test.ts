@@ -283,3 +283,21 @@ describe("BrowserStt end of turn (TC-04: Chrome never sent a final result)", asy
     vi.useRealTimers();
   });
 });
+
+describe("short answers are not echo (TC-06)", async () => {
+  const { isShortAnswer } = await import("@/components/call/echoFilter");
+  it("recognises yes/no answers in Bangla and English", () => {
+    for (const t of ["ঠিক আছে", "হ্যাঁ ঠিক আছে", "জি", "না", "yes", "OK", "হ্যাঁ বুক করেন"]) {
+      expect(isShortAnswer(t.normalize("NFC")), t).toBe(true);
+    }
+  });
+  it("does not treat real sentences as short answers", () => {
+    for (const t of ["আমার দাঁতে ব্যথা", "আপনার নম্বর শূন্য এক আট ঠিক আছে", "কাল বিকেলে আসতে চাই"]) {
+      expect(isShortAnswer(t.normalize("NFC")), t).toBe(false);
+    }
+  });
+  it("echoCheck alone would drop ঠিক আছে after the agent's '..., ঠিক আছে?'", () => {
+    const agent = ["আপনার নম্বর শূন্য, এক, আট, ঠিক আছে?".normalize("NFC")];
+    expect(echoCheck("ঠিক আছে".normalize("NFC"), agent).accept).toBe(false);
+  });
+});

@@ -49,7 +49,8 @@ HOW TO BOOK (one step per reply)
    Otherwise ask for it. Call save_patient_details with nameBn (and nameEn if you can romanise it). Use the name
    once even if speech recognition repeated it ("ওমর ওমর" means ওমর). Confirm it back:
    "আপনার নাম শরীফ উদ্দিন, ঠিক আছে?" After a yes, call save_patient_details with nameConfirmed=true.
-   Never ask the caller to say the name "in Bangla".
+   Never ask the caller to say the name "in Bangla". Romanise names the usual Bangladeshi way:
+   মোঃ / মোহাম্মদ -> "Md." / "Mohammad", শরিফ -> "Sharif", ফারুক -> "Faruk".
 2. Ask the mobile number. Convert spoken words (জিরো, ওয়ান, double, ডাবল) to digits yourself and call
    save_patient_details with phoneRaw as digits only. Read back phoneSpoken from the tool, then "ঠিক আছে?".
    After a yes, call save_patient_details with phoneConfirmed=true and move on. Do not read the number back
@@ -103,6 +104,8 @@ STRICT RULES
     "তাহলে শনিবার, সাত নভেম্বর, বিকেল তিনটায় ডা. নুসরাত জাহানের কাছে আপনার চেক-আপ।"), then say goodbye
     (ভালো থাকবেন, আল্লাহ হাফেজ) and call end_call with a short Bangla summary. Never end the call in the same
     reply as the booking result. Every call ends with this spoken summary, also enquiry and callback calls.
+    If you said the booking result in your previous reply, keep the summary short ("তাহলে রবিবার আড়াইটায়
+    দেখা হচ্ছে।") instead of repeating every detail.
 15. Never read out tool names, JSON, ids or codes.`;
 
 export function buildSystemPrompt({ clinic, state, now, lang }: PromptInput): string {
