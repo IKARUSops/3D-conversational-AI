@@ -250,4 +250,23 @@ describe("T2.4 turn loop (mock LLM)", () => {
     expect(said).not.toContain(N("আবার বলবেন"));
     expect((mem.call.agentState as AgentState).appointmentId).toBe("appt-1");
   });
+
+  it("TC-05: one question per reply, everything after the first question is dropped", async () => {
+    const { events, mem } = await turn(
+      { turnSeq: 1, text: "০১৮৬৭৬৪৩৮৬৬" },
+      {
+        llms: [
+          llm(
+            "google:mock",
+            textModel(["আপনার নম্বর শূন্য এক আট, ঠিক আছে? এখন বলেন, কী সমস্যার জন্য আসতে চান? ", "দাঁতের ব্যথা নাকি স্কেলিং?"]),
+          ),
+        ],
+      },
+    );
+    const said = events.filter((e) => e.type === "sentence").map((e) => e.text);
+    expect(said.join(" ")).toContain(N("ঠিক আছে?"));
+    expect(said.join(" ")).not.toContain(N("সমস্যার"));
+    expect(said.join(" ")).not.toContain(N("স্কেলিং"));
+    expect(mem.turns.at(-1)?.text).not.toContain(N("সমস্যার"));
+  });
 });

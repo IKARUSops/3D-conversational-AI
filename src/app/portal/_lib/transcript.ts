@@ -42,11 +42,18 @@ export function markerLabel(type: string, payload: unknown): { label: string; ok
   switch (type) {
     case "tool_call":
       return { label: `Tool: ${name ?? "unknown"}` };
-    case "tool_result":
+    case "tool_result": {
+      // A business rule answer (closed Friday, outside hours, ...) is not a failure (TC-05).
+      const out = (p.output && typeof p.output === "object" ? p.output : {}) as Record<string, unknown>;
+      const problems = Array.isArray(out.problems) ? out.problems.filter((x) => typeof x === "string") : [];
+      if (p.ok === false && problems.length > 0 && !("error" in out)) {
+        return { label: `Result: ${name ?? "tool"} (${problems.join(", ").replace(/_/g, " ")})` };
+      }
       return {
         label: `Result: ${name ?? "tool"}${p.ok === false ? " (failed)" : ""}`,
         ok: p.ok !== false,
       };
+    }
     case "interruption":
       return { label: "Caller interrupted" };
     case "silence_prompt":

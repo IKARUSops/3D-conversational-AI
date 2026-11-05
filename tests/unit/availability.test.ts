@@ -36,7 +36,7 @@ describe("spoken Bangla (FR-C9, FR-C22)", () => {
   it("speaks half hours naturally", () => {
     expect(spokenTimeBn(10 * 60 + 30)).toBe("সকাল সাড়ে দশটা");
     expect(spokenTimeBn(13 * 60 + 30)).toBe("দুপুর দেড়টা");
-    expect(spokenTimeBn(14 * 60 + 30)).toBe("বিকাল আড়াইটা");
+    expect(spokenTimeBn(14 * 60 + 30)).toBe("বিকেল আড়াইটা");
     expect(spokenTimeBn(12 * 60)).toBe("দুপুর বারোটা");
     expect(spokenTimeBn(19 * 60 + 30)).toBe("রাত সাড়ে সাতটা");
   });

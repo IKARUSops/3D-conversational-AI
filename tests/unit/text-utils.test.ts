@@ -85,7 +85,7 @@ describe("T2.1 FR-C22 bangla-numbers", () => {
   it("speaks times like a Dhaka receptionist", () => {
     expect(timeToBn(10, 0)).toBe(N("সকাল দশটা"));
     expect(timeToBn(18, 30)).toBe(N("সন্ধ্যা সাড়ে ছয়টা"));
-    expect(timeToBn(17, 15)).toBe(N("বিকাল সোয়া পাঁচটা"));
+    expect(timeToBn(17, 15)).toBe(N("বিকেল সোয়া পাঁচটা"));
     expect(timeToBn(18, 45)).toBe(N("সন্ধ্যা পৌনে সাতটা"));
     expect(timeToBn(13, 30)).toBe(N("দুপুর দেড়টা"));
     expect(timeToBn(18, 10)).toBe(N("সন্ধ্যা ছয়টা দশ মিনিট"));

@@ -109,7 +109,8 @@ export function summarizeState(state: AgentState, clinic?: Pick<ClinicContext, "
   } else lines.push("- Name: not given yet");
   if (state.phone) {
     const status = state.phone.valid ? (state.phone.confirmed ? "valid, confirmed" : "valid, NOT confirmed yet") : `INVALID (try ${state.phone.tries} of ${MAX_PHONE_TRIES})`;
-    lines.push(`- Phone: ${state.phone.raw} (${status})`);
+    const last4 = state.phone.valid ? `; final read-back says only the last 4 digits: "শেষে ${spokenDigitsBn(state.phone.raw.slice(-4))}"` : "";
+    lines.push(`- Phone: ${state.phone.raw} (${status})${last4}`);
   } else lines.push("- Phone: not given yet");
   if (state.reason) lines.push(`- Reason: ${state.reason}`);
   if (state.serviceCode) lines.push(`- Service: ${state.serviceCode}`);

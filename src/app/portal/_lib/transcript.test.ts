@@ -51,5 +51,9 @@ describe("FR-D6 transcript with tool markers", () => {
       ok: false,
     });
     expect(markerLabel("interruption", {}).label).toBe("Caller interrupted");
+    // TC-05: a business rule answer is not shown as a failure.
+    expect(
+      markerLabel("tool_result", { name: "resolve_datetime", ok: false, output: { ok: false, problems: ["closed_friday"] } }),
+    ).toEqual({ label: "Result: resolve datetime (closed friday)" });
   });
 });

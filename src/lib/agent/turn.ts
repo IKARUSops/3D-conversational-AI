@@ -196,9 +196,18 @@ export async function runTurn(args: RunTurnArgs, deps: TurnDeps, emit: (e: TurnE
   const msFromStart = () => now().getTime() - call.startedAt.getTime();
   const live = () => !signal.aborted;
 
-  const sendSentence = (raw: string) => {
-    const text = captionText(raw);
+  let askedQuestion = false;
+  const sendSentence = (raw: string, fromLlm = false) => {
+    let text = captionText(raw);
     if (!text || !live()) return;
+    // One question per reply, enforced in code (TC-03/TC-05): the caller answered the second
+    // question and the first stayed unanswered. Everything after the first question is dropped.
+    if (fromLlm && askedQuestion) return;
+    const q = fromLlm ? text.search(/[?？]/) : -1;
+    if (q >= 0) {
+      askedQuestion = true;
+      text = text.slice(0, q + 1);
+    }
     const seq = holder.state.nextAgentSeq ?? 0;
     holder.state = { ...holder.state, nextAgentSeq: seq + 1 };
     sentences.push(text);
@@ -322,11 +331,11 @@ export async function runTurn(args: RunTurnArgs, deps: TurnDeps, emit: (e: TurnE
         if (firstTokenAt !== undefined) firstTokenMs = firstTokenAt - t0;
         switch (part.type) {
           case "text-delta":
-            for (const s of splitter.push(part.text)) sendSentence(s);
+            for (const s of splitter.push(part.text)) sendSentence(s, true);
             break;
           case "tool-input-start":
           case "tool-call": {
-            for (const s of splitter.flush()) sendSentence(s);
+            for (const s of splitter.flush()) sendSentence(s, true);
             if (part.type === "tool-call") {
               emit({ type: "tool", name: part.toolName, status: "start" });
               if (!fillerSent && sentences.length === 0 && FILLER_TOOLS.has(part.toolName)) {
@@ -346,7 +355,7 @@ export async function runTurn(args: RunTurnArgs, deps: TurnDeps, emit: (e: TurnE
             emit({ type: "tool", name: part.toolName, status: "error" });
             break;
           case "finish-step":
-            for (const s of splitter.flush()) sendSentence(s);
+            for (const s of splitter.flush()) sendSentence(s, true);
             break;
           case "error":
             failed = true;
@@ -366,7 +375,7 @@ export async function runTurn(args: RunTurnArgs, deps: TurnDeps, emit: (e: TurnE
         }
       }
     }
-    for (const s of splitter.flush()) sendSentence(s);
+    for (const s of splitter.flush()) sendSentence(s, true);
 
     // 5. Nothing usable: say sorry (or goodbye when the call was ended by a tool).
     if (sentences.length === 0 && live()) {

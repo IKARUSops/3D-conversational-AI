@@ -123,3 +123,15 @@ describe("T2.2 datetime-bn: unparsed and helpers", () => {
     expect(todayInfo(at("2026-11-04T19:00:00Z"))).toMatchObject({ iso: "2026-11-05", timeHm: "01:00" });
   });
 });
+
+describe("upcomingDaysBn (TC-05: dates come from code)", async () => {
+  const { upcomingDaysBn } = await import("@/lib/text/datetime-bn");
+  it("Thursday: tomorrow is closed Friday, next open day is Saturday 7 November", () => {
+    const lines = upcomingDaysBn(new Date("2026-11-05T06:00:00Z"), { openWeekdays: [0, 1, 2, 3, 4, 6] });
+    expect(lines[0]).toContain("বৃহস্পতিবার".normalize("NFC"));
+    expect(lines[1]).toContain("(CLOSED)");
+    expect(lines[1]).toContain("শুক্রবার".normalize("NFC"));
+    expect(lines[2]).toContain("শনিবার".normalize("NFC"));
+    expect(lines[2]).toContain("সাত নভেম্বর".normalize("NFC"));
+  });
+});

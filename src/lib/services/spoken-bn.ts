@@ -106,14 +106,14 @@ export function partOfDayAt(minutes: number): PartOfDay {
 export const PART_OF_DAY_BN: Record<PartOfDay, string> = {
   morning: "সকাল",
   noon: "দুপুর",
-  afternoon: "বিকাল",
+  afternoon: "বিকেল",
   evening: "সন্ধ্যা",
   night: "রাত",
 };
 
 const hour12 = (h: number): number => ((h + 11) % 12) + 1;
 
-/** "সন্ধ্যা ছয়টা", "সকাল সাড়ে দশটা", "দুপুর দেড়টা", "বিকাল আড়াইটা". */
+/** "সন্ধ্যা ছয়টা", "সকাল সাড়ে দশটা", "দুপুর দেড়টা", "বিকেল আড়াইটা". */
 export function spokenTimeBn(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;

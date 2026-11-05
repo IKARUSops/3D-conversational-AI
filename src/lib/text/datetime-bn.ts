@@ -38,7 +38,7 @@ export const PART_WINDOWS: Record<PartOfDay, [number, number]> = {
 export const PART_BN: Record<PartOfDay, string> = {
   morning: n("সকাল"),
   noon: n("দুপুর"),
-  afternoon: n("বিকাল"),
+  afternoon: n("বিকেল"),
   evening: n("সন্ধ্যা"),
   night: n("রাত"),
 };
@@ -593,4 +593,28 @@ export function todayInfo(now: Date): { weekdayBn: string; dateBn: string; iso: 
     timeHm: fmtHm(dn.minutes),
     timeBn: timeToBn(Math.floor(dn.minutes / 60), dn.minutes % 60),
   };
+}
+
+/**
+ * Day facts for the prompt, all computed in code (TC-05: the LLM said "শনিবার, পাঁচ নভেম্বর"
+ * for Saturday 7 November). Lines like "Tomorrow: শুক্রবার, ছয় নভেম্বর (CLOSED)".
+ */
+export function upcomingDaysBn(now: Date, settings: Pick<ClinicSettings, "openWeekdays">): string[] {
+  const today = dhakaNow(now).dayNum;
+  const label = (dayNum: number) => {
+    const { d, m, weekday } = dayNumToParts(dayNum);
+    return `${WEEKDAYS_BN[weekday]!}, ${dateToBn(d, m)}`;
+  };
+  const open = (dayNum: number) => settings.openWeekdays.includes(dayNumToParts(dayNum).weekday);
+  const lines = [
+    `Today: ${label(today)}${open(today) ? "" : " (CLOSED)"}`,
+    `Tomorrow (say কাল): ${label(today + 1)}${open(today + 1) ? "" : " (CLOSED)"}`,
+  ];
+  for (let k = 1; k <= 7; k++) {
+    if (open(today + k)) {
+      lines.push(`Next open day after today: ${label(today + k)}`);
+      break;
+    }
+  }
+  return lines;
 }

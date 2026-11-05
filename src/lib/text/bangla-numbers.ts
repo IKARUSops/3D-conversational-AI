@@ -53,7 +53,7 @@ export function hourWordBn(hour12: number, suffix = "টা"): string {
   return n(`${BN_0_99[hour12]}${suffix}`);
 }
 
-export type BnDayPart = "সকাল" | "দুপুর" | "বিকাল" | "সন্ধ্যা" | "রাত";
+export type BnDayPart = "সকাল" | "দুপুর" | "বিকেল" | "সন্ধ্যা" | "রাত";
 
 /** Spoken part of day for a 24h hour/minute, as people in Dhaka say it. */
 export function dayPartBn(hour24: number, minute = 0): string {
@@ -61,13 +61,13 @@ export function dayPartBn(hour24: number, minute = 0): string {
   if (t < 4 * 60) return n("রাত");
   if (t < 12 * 60) return n("সকাল");
   if (t < 15 * 60) return n("দুপুর");
-  if (t < 18 * 60) return n("বিকাল");
+  if (t < 18 * 60) return n("বিকেল");
   if (t < 20 * 60) return n("সন্ধ্যা");
   return n("রাত");
 }
 
 /**
- * Time to Bangla words: 10:00 "সকাল দশটা", 18:30 "সন্ধ্যা সাড়ে ছয়টা", 17:15 "বিকাল সোয়া পাঁচটা",
+ * Time to Bangla words: 10:00 "সকাল দশটা", 18:30 "সন্ধ্যা সাড়ে ছয়টা", 17:15 "বিকেল সোয়া পাঁচটা",
  * 18:45 "সন্ধ্যা পৌনে সাতটা", 13:30 "দুপুর দেড়টা", 14:30 "দুপুর আড়াইটা", 18:10 "সন্ধ্যা ছয়টা দশ মিনিট".
  */
 export function timeToBn(
